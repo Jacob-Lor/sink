@@ -330,7 +330,7 @@
     <div class="container">
         <div class="header">
             <h1>📈 Build Your Portfolio</h1>
-            <p>Make smart investment decisions over 10 periods and watch your money grow!</p>
+            <p>Make smart investment decisions over 10 months and watch your money grow!</p>
         </div>
 
         <div class="game-stats">
@@ -347,7 +347,7 @@
                 <div class="stat-value" id="totalWorth">$5,000</div>
             </div>
             <div class="stat-card">
-                <h3>📅 Period</h3>
+                <h3>📅 Month</h3>
                 <div class="stat-value" id="period">1 / 10</div>
             </div>
         </div>
@@ -372,14 +372,14 @@
         </div>
 
         <div class="controls">
-            <button class="next-period-btn" id="nextPeriodBtn">⏭️ Next Period</button>
+            <button class="next-period-btn" id="nextPeriodBtn">⏭️ Next Month</button>
             <button class="reset-btn" id="resetBtn">🔄 Reset Game</button>
         </div>
 
         <div class="game-over" id="gameOver" style="display: none;">
             <h2>🎉 Game Complete!</h2>
             <div class="final-score" id="finalScore">$0</div>
-            <p>You've completed 10 investment periods!</p>
+            <p>You've completed 10 months of investing!</p>
             <button class="reset-btn" onclick="resetGame()" style="margin-top: 20px;">Play Again</button>
         </div>
     </div>
@@ -410,44 +410,44 @@
                     name: 'Credit Card Debt', 
                     price: 8500, 
                     basePrice: 8500,
-                    description: 'Pay off high-interest credit card debt (18% APR) - guaranteed return!',
+                    description: 'Pay off high-interest credit card debt (1.5% monthly interest) - guaranteed return!',
                     volatility: 0.0,
                     isDebt: true,
-                    interestRate: 0.18
+                    monthlyInterestRate: 0.015
                 },
                 payday: { 
                     name: 'Payday Loan Debt', 
                     price: 1200, 
                     basePrice: 1200,
-                    description: 'Pay off extremely high-interest payday loans (400% APR) - urgent priority!',
+                    description: 'Pay off extremely high-interest payday loans (33.3% monthly interest) - urgent priority!',
                     volatility: 0.0,
                     isDebt: true,
-                    interestRate: 4.0
+                    monthlyInterestRate: 0.333
                 },
                 autoloan: { 
                     name: 'Auto Loan Debt', 
                     price: 15000, 
                     basePrice: 15000,
-                    description: 'Pay off car loan debt (6% APR) - moderate interest rate',
+                    description: 'Pay off car loan debt (0.5% monthly interest) - moderate interest rate',
                     volatility: 0.0,
                     isDebt: true,
-                    interestRate: 0.06
+                    monthlyInterestRate: 0.005
                 },
                 mortgage: { 
                     name: 'Mortgage Debt', 
                     price: 45000, 
                     basePrice: 45000,
-                    description: 'Pay extra on mortgage (4% APR) - low interest, but guaranteed return',
+                    description: 'Pay extra on mortgage (0.33% monthly interest) - low interest, but guaranteed return',
                     volatility: 0.0,
                     isDebt: true,
-                    interestRate: 0.04
+                    monthlyInterestRate: 0.0033
                 }
             },
             priceHistory: {},
             newsEvents: [
                 "Market showing steady growth across all sectors.",
                 "Economic indicators suggest continued expansion.",
-                "Tech sector experiencing significant growth this period.",
+                "Tech sector experiencing significant growth this month.",
                 "Interest rates remain stable, benefiting bond markets.",
                 "Financial advisors recommend paying off high-interest debt first.",
                 "Credit card interest rates continue to climb nationwide.",
@@ -480,9 +480,8 @@
             Object.keys(gameState.investments).forEach(key => {
                 const investment = gameState.investments[key];
                 if (investment.isDebt) {
-                    // Debt grows with interest each period
-                    const interestGrowth = investment.interestRate / 2; // Semi-annual compounding
-                    investment.price = Math.round(investment.price * (1 + interestGrowth));
+                    // Debt grows with monthly interest
+                    investment.price = Math.round(investment.price * (1 + investment.monthlyInterestRate));
                 } else {
                     // Regular investments fluctuate with market volatility
                     const change = (Math.random() - 0.5) * 2 * investment.volatility;
@@ -601,7 +600,7 @@
                     item.innerHTML = `
                         <div>
                             <strong>💳 ${investment.name}</strong><br>
-                            <small>Remaining debt balance (${(investment.interestRate * 100).toFixed(1)}% APR)</small>
+                            <small>Remaining debt balance (${(investment.monthlyInterestRate * 100).toFixed(2)}% monthly interest)</small>
                         </div>
                         <div style="text-align: right; color: #ef4444;">
                             <strong>-${formatCurrency(investment.price)}</strong>
@@ -669,12 +668,12 @@
             }
 
             gameState.period++;
-            gameState.cash += 2000; // Add income each period
+            gameState.cash += 2000; // Add monthly income
             updatePrices();
 
             // Update news
             const randomNews = gameState.newsEvents[Math.floor(Math.random() * gameState.newsEvents.length)];
-            document.getElementById('newsText').textContent = `Period ${gameState.period}: ${randomNews}`;
+            document.getElementById('newsText').textContent = `Month ${gameState.period}: ${randomNews}`;
 
             updateDisplay();
 
@@ -719,44 +718,44 @@
                         name: 'Credit Card Debt', 
                         price: 8500, 
                         basePrice: 8500,
-                        description: 'Pay off high-interest credit card debt (18% APR) - guaranteed return!',
+                        description: 'Pay off high-interest credit card debt (1.5% monthly interest) - guaranteed return!',
                         volatility: 0.0,
                         isDebt: true,
-                        interestRate: 0.18
+                        monthlyInterestRate: 0.015
                     },
                     payday: { 
                         name: 'Payday Loan Debt', 
                         price: 1200, 
                         basePrice: 1200,
-                        description: 'Pay off extremely high-interest payday loans (400% APR) - urgent priority!',
+                        description: 'Pay off extremely high-interest payday loans (33.3% monthly interest) - urgent priority!',
                         volatility: 0.0,
                         isDebt: true,
-                        interestRate: 4.0
+                        monthlyInterestRate: 0.333
                     },
                     autoloan: { 
                         name: 'Auto Loan Debt', 
                         price: 15000, 
                         basePrice: 15000,
-                        description: 'Pay off car loan debt (6% APR) - moderate interest rate',
+                        description: 'Pay off car loan debt (0.5% monthly interest) - moderate interest rate',
                         volatility: 0.0,
                         isDebt: true,
-                        interestRate: 0.06
+                        monthlyInterestRate: 0.005
                     },
                     mortgage: { 
                         name: 'Mortgage Debt', 
                         price: 45000, 
                         basePrice: 45000,
-                        description: 'Pay extra on mortgage (4% APR) - low interest, but guaranteed return',
+                        description: 'Pay extra on mortgage (0.33% monthly interest) - low interest, but guaranteed return',
                         volatility: 0.0,
                         isDebt: true,
-                        interestRate: 0.04
+                        monthlyInterestRate: 0.0033
                     }
                 },
                 priceHistory: {},
                 newsEvents: [
                     "Market showing steady growth across all sectors.",
                     "Economic indicators suggest continued expansion.",
-                    "Tech sector experiencing significant growth this period.",
+                    "Tech sector experiencing significant growth this month.",
                     "Interest rates remain stable, benefiting bond markets.",
                     "Financial advisors recommend paying off high-interest debt first.",
                     "Credit card interest rates continue to climb nationwide.",
@@ -779,7 +778,7 @@
             document.getElementById('gameOver').style.display = 'none';
             document.getElementById('investmentSection').style.display = 'block';
             document.getElementById('nextPeriodBtn').style.display = 'inline-block';
-            document.getElementById('nextPeriodBtn').textContent = '⏭️ Next Period';
+            document.getElementById('nextPeriodBtn').textContent = '⏭️ Next Month';
             document.getElementById('newsText').textContent = 'Welcome to the investment game! You start with $5,000. Make wise choices!';
 
             updateDisplay();
