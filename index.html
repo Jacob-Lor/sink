@@ -94,10 +94,24 @@
             box-shadow: 0 15px 30px rgba(102, 126, 234, 0.2);
         }
 
+        .investment-card.debt-card {
+            border: 2px solid #ef4444;
+            background: linear-gradient(145deg, #fef2f2, #fee2e2);
+        }
+
+        .investment-card.debt-card:hover {
+            border-color: #dc2626;
+            box-shadow: 0 15px 30px rgba(239, 68, 68, 0.2);
+        }
+
         .investment-card h4 {
             color: #667eea;
             margin-bottom: 10px;
             font-size: 1.3em;
+        }
+
+        .debt-card h4 {
+            color: #ef4444;
         }
 
         .investment-card p {
@@ -114,6 +128,10 @@
             padding: 10px;
             background: rgba(102, 126, 234, 0.1);
             border-radius: 8px;
+        }
+
+        .debt-card .price-info {
+            background: rgba(239, 68, 68, 0.1);
         }
 
         .current-price {
@@ -179,6 +197,14 @@
             transform: none;
         }
 
+        .debt-btn {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+        }
+
+        .debt-btn:hover {
+            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
+        }
+
         .portfolio-section {
             background: white;
             padding: 30px;
@@ -202,6 +228,11 @@
 
         .portfolio-item:last-child {
             border-bottom: none;
+        }
+
+        .debt-item {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
         }
 
         .controls {
@@ -377,8 +408,8 @@
                 },
                 creditcard: { 
                     name: 'Credit Card Debt', 
-                    price: 100, 
-                    basePrice: 100,
+                    price: 8500, 
+                    basePrice: 8500,
                     description: 'Pay off high-interest credit card debt (18% APR) - guaranteed return!',
                     volatility: 0.0,
                     isDebt: true,
@@ -386,12 +417,30 @@
                 },
                 payday: { 
                     name: 'Payday Loan Debt', 
-                    price: 100, 
-                    basePrice: 100,
+                    price: 1200, 
+                    basePrice: 1200,
                     description: 'Pay off extremely high-interest payday loans (400% APR) - urgent priority!',
                     volatility: 0.0,
                     isDebt: true,
                     interestRate: 4.0
+                },
+                autoloan: { 
+                    name: 'Auto Loan Debt', 
+                    price: 15000, 
+                    basePrice: 15000,
+                    description: 'Pay off car loan debt (6% APR) - moderate interest rate',
+                    volatility: 0.0,
+                    isDebt: true,
+                    interestRate: 0.06
+                },
+                mortgage: { 
+                    name: 'Mortgage Debt', 
+                    price: 45000, 
+                    basePrice: 45000,
+                    description: 'Pay extra on mortgage (4% APR) - low interest, but guaranteed return',
+                    volatility: 0.0,
+                    isDebt: true,
+                    interestRate: 0.04
                 }
             },
             priceHistory: {},
@@ -400,12 +449,16 @@
                 "Economic indicators suggest continued expansion.",
                 "Tech sector experiencing significant growth this period.",
                 "Interest rates remain stable, benefiting bond markets.",
+                "Financial advisors recommend paying off high-interest debt first.",
+                "Credit card interest rates continue to climb nationwide.",
+                "Auto loan rates see slight increase due to Federal Reserve policy.",
+                "Mortgage rates remain competitive for qualified borrowers.",
+                "Consumer debt reaches new highs - experts advise caution.",
+                "Payday loan regulations tighten in several states.",
                 "Real estate market shows strong fundamentals.",
-                "Cryptocurrency market experiencing high volatility.",
                 "Global markets react to positive economic data.",
-                "Investors showing confidence in current market conditions.",
-                "New regulations may impact certain investment sectors.",
-                "Market analysts predict continued growth in coming periods."
+                "Debt consolidation services see increased demand.",
+                "Financial literacy programs emphasize debt management."
             ]
         };
 
@@ -475,13 +528,10 @@
                 const inputPlaceholder = isDebt ? 'Amount to pay off' : 'Amount to invest';
 
                 const card = document.createElement('div');
-                card.className = 'investment-card';
-                if (isDebt) {
-                    card.style.border = '2px solid #ef4444';
-                    card.style.background = 'linear-gradient(145deg, #fef2f2, #fee2e2)';
-                }
+                card.className = `investment-card ${isDebt ? 'debt-card' : ''}`;
+                
                 card.innerHTML = `
-                    <h4>${investment.name}</h4>
+                    <h4>${isDebt ? '💳 ' : ''}${investment.name}</h4>
                     <p>${investment.description}</p>
                     <div class="price-info">
                         <span class="current-price">${isDebt ? 'Debt Balance: ' : ''}${formatCurrency(investment.price)}</span>
@@ -491,7 +541,7 @@
                     </div>
                     <div class="investment-controls">
                         <input type="number" class="amount-input" placeholder="${inputPlaceholder}" min="1" max="${gameState.cash}" id="amount-${key}">
-                        <button class="invest-btn" onclick="makeInvestment('${key}')" ${gameState.cash <= 0 ? 'disabled' : ''} style="${isDebt ? 'background: linear-gradient(135deg, #ef4444, #dc2626);' : ''}">
+                        <button class="invest-btn ${isDebt ? 'debt-btn' : ''}" onclick="makeInvestment('${key}')" ${gameState.cash <= 0 ? 'disabled' : ''}>
                             ${buttonText}
                         </button>
                     </div>
@@ -533,13 +583,11 @@
                 if (investment.isDebt && investment.price > 0) {
                     hasDebts = true;
                     const item = document.createElement('div');
-                    item.className = 'portfolio-item';
-                    item.style.background = '#fef2f2';
-                    item.style.border = '1px solid #fecaca';
+                    item.className = 'portfolio-item debt-item';
                     item.innerHTML = `
                         <div>
                             <strong>💳 ${investment.name}</strong><br>
-                            <small>Remaining debt balance</small>
+                            <small>Remaining debt balance (${(investment.interestRate * 100).toFixed(1)}% APR)</small>
                         </div>
                         <div style="text-align: right; color: #ef4444;">
                             <strong>-${formatCurrency(investment.price)}</strong>
@@ -650,19 +698,41 @@
                         description: 'Safe government bonds with steady, low returns',
                         volatility: 0.05 
                     },
-                    realestate: { 
-                        name: 'Real Estate Fund', 
-                        price: 100, 
-                        basePrice: 100,
-                        description: 'Real estate investment trust with moderate risk and steady growth',
-                        volatility: 0.12 
+                    creditcard: { 
+                        name: 'Credit Card Debt', 
+                        price: 8500, 
+                        basePrice: 8500,
+                        description: 'Pay off high-interest credit card debt (18% APR) - guaranteed return!',
+                        volatility: 0.0,
+                        isDebt: true,
+                        interestRate: 0.18
                     },
-                    crypto: { 
-                        name: 'Cryptocurrency', 
-                        price: 100, 
-                        basePrice: 100,
-                        description: 'High-risk, high-reward digital currency investment',
-                        volatility: 0.35 
+                    payday: { 
+                        name: 'Payday Loan Debt', 
+                        price: 1200, 
+                        basePrice: 1200,
+                        description: 'Pay off extremely high-interest payday loans (400% APR) - urgent priority!',
+                        volatility: 0.0,
+                        isDebt: true,
+                        interestRate: 4.0
+                    },
+                    autoloan: { 
+                        name: 'Auto Loan Debt', 
+                        price: 15000, 
+                        basePrice: 15000,
+                        description: 'Pay off car loan debt (6% APR) - moderate interest rate',
+                        volatility: 0.0,
+                        isDebt: true,
+                        interestRate: 0.06
+                    },
+                    mortgage: { 
+                        name: 'Mortgage Debt', 
+                        price: 45000, 
+                        basePrice: 45000,
+                        description: 'Pay extra on mortgage (4% APR) - low interest, but guaranteed return',
+                        volatility: 0.0,
+                        isDebt: true,
+                        interestRate: 0.04
                     }
                 },
                 priceHistory: {},
@@ -673,12 +743,14 @@
                     "Interest rates remain stable, benefiting bond markets.",
                     "Financial advisors recommend paying off high-interest debt first.",
                     "Credit card interest rates continue to climb nationwide.",
-                    "Global markets react to positive economic data.",
-                    "Investors showing confidence in current market conditions.",
-                    "New regulations may impact certain investment sectors.",
-                    "Market analysts predict continued growth in coming periods.",
+                    "Auto loan rates see slight increase due to Federal Reserve policy.",
+                    "Mortgage rates remain competitive for qualified borrowers.",
                     "Consumer debt reaches new highs - experts advise caution.",
-                    "Payday loan regulations tighten in several states."
+                    "Payday loan regulations tighten in several states.",
+                    "Real estate market shows strong fundamentals.",
+                    "Global markets react to positive economic data.",
+                    "Debt consolidation services see increased demand.",
+                    "Financial literacy programs emphasize debt management."
                 ]
             };
 
@@ -705,9 +777,6 @@
     </script>
 </body>
 </html>
-
-
-
 
 
 
