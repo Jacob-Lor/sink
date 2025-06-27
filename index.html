@@ -503,13 +503,27 @@
             return totalValue;
         }
 
+        function calculateTotalDebt() {
+            let totalDebt = 0;
+            Object.keys(gameState.investments).forEach(key => {
+                const investment = gameState.investments[key];
+                if (investment.isDebt && investment.price > 0) {
+                    totalDebt += investment.price;
+                }
+            });
+            return totalDebt;
+        }
+
         function updateDisplay() {
             document.getElementById('cash').textContent = formatCurrency(gameState.cash);
             document.getElementById('period').textContent = `${gameState.period} / ${gameState.maxPeriods}`;
             
             const portfolioValue = calculatePortfolioValue();
+            const totalDebt = calculateTotalDebt();
+            const netWorth = gameState.cash + portfolioValue - totalDebt;
+            
             document.getElementById('portfolioValue').textContent = formatCurrency(portfolioValue);
-            document.getElementById('totalWorth').textContent = formatCurrency(gameState.cash + portfolioValue);
+            document.getElementById('totalWorth').textContent = formatCurrency(netWorth);
 
             // Update investment options
             const investmentOptions = document.getElementById('investmentOptions');
@@ -670,7 +684,10 @@
         }
 
         function endGame() {
-            const finalWorth = gameState.cash + calculatePortfolioValue();
+            const portfolioValue = calculatePortfolioValue();
+            const totalDebt = calculateTotalDebt();
+            const finalWorth = gameState.cash + portfolioValue - totalDebt;
+            
             document.getElementById('finalScore').textContent = formatCurrency(finalWorth);
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('investmentSection').style.display = 'none';
@@ -777,11 +794,3 @@
     </script>
 </body>
 </html>
-
-
-
-
-
-
-
-
