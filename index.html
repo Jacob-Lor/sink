@@ -330,7 +330,7 @@
     <div class="container">
         <div class="header">
             <h1>📈 Build Your Portfolio</h1>
-            <p>Make smart investment decisions over 10 months and watch your money grow!</p>
+            <p>Make smart investment decisions over 30 months and watch your money grow!</p>
         </div>
 
         <div class="game-stats">
@@ -348,7 +348,7 @@
             </div>
             <div class="stat-card">
                 <h3>📅 Month</h3>
-                <div class="stat-value" id="period">1 / 10</div>
+                <div class="stat-value" id="period">1 / 30</div>
             </div>
         </div>
 
@@ -379,7 +379,7 @@
         <div class="game-over" id="gameOver" style="display: none;">
             <h2>🎉 Game Complete!</h2>
             <div class="final-score" id="finalScore">$0</div>
-            <p>You've completed 10 months of investing!</p>
+            <p>You've completed 30 months of investing!</p>
             <button class="reset-btn" onclick="resetGame()" style="margin-top: 20px;">Play Again</button>
         </div>
     </div>
@@ -389,7 +389,7 @@
         let gameState = {
             cash: 5000,
             period: 1,
-            maxPeriods: 10,
+            maxPeriods: 30,
             portfolio: {},
             investments: {
                 stocks: { 
@@ -697,7 +697,7 @@
             gameState = {
                 cash: 5000,
                 period: 1,
-                maxPeriods: 10,
+                maxPeriods: 30,
                 portfolio: {},
                 investments: {
                     stocks: { 
