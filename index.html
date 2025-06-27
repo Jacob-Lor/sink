@@ -375,19 +375,23 @@
                     description: 'Safe government bonds with steady, low returns',
                     volatility: 0.05 
                 },
-                realestate: { 
-                    name: 'Real Estate Fund', 
+                creditcard: { 
+                    name: 'Credit Card Debt', 
                     price: 100, 
                     basePrice: 100,
-                    description: 'Real estate investment trust with moderate risk and steady growth',
-                    volatility: 0.12 
+                    description: 'Pay off high-interest credit card debt (18% APR) - guaranteed return!',
+                    volatility: 0.0,
+                    isDebt: true,
+                    interestRate: 0.18
                 },
-                crypto: { 
-                    name: 'Cryptocurrency', 
+                payday: { 
+                    name: 'Payday Loan Debt', 
                     price: 100, 
                     basePrice: 100,
-                    description: 'High-risk, high-reward digital currency investment',
-                    volatility: 0.35 
+                    description: 'Pay off extremely high-interest payday loans (400% APR) - urgent priority!',
+                    volatility: 0.0,
+                    isDebt: true,
+                    interestRate: 4.0
                 }
             },
             priceHistory: {},
@@ -422,9 +426,16 @@
         function updatePrices() {
             Object.keys(gameState.investments).forEach(key => {
                 const investment = gameState.investments[key];
-                const change = (Math.random() - 0.5) * 2 * investment.volatility;
-                const newPrice = Math.max(investment.price * (1 + change), 10);
-                investment.price = Math.round(newPrice);
+                if (investment.isDebt) {
+                    // Debt grows with interest each period
+                    const interestGrowth = investment.interestRate / 2; // Semi-annual compounding
+                    investment.price = Math.round(investment.price * (1 + interestGrowth));
+                } else {
+                    // Regular investments fluctuate with market volatility
+                    const change = (Math.random() - 0.5) * 2 * investment.volatility;
+                    const newPrice = Math.max(investment.price * (1 + change), 10);
+                    investment.price = Math.round(newPrice);
+                }
                 gameState.priceHistory[key].push(investment.price);
             });
         }
@@ -459,21 +470,29 @@
                 const priceChangePercent = priceHistory.length > 1 ? 
                     ((priceChange / priceHistory[priceHistory.length - 2]) * 100).toFixed(1) : 0;
 
+                const isDebt = investment.isDebt || false;
+                const buttonText = isDebt ? 'Pay Off' : 'Invest';
+                const inputPlaceholder = isDebt ? 'Amount to pay off' : 'Amount to invest';
+
                 const card = document.createElement('div');
                 card.className = 'investment-card';
+                if (isDebt) {
+                    card.style.border = '2px solid #ef4444';
+                    card.style.background = 'linear-gradient(145deg, #fef2f2, #fee2e2)';
+                }
                 card.innerHTML = `
                     <h4>${investment.name}</h4>
                     <p>${investment.description}</p>
                     <div class="price-info">
-                        <span class="current-price">${formatCurrency(investment.price)}</span>
+                        <span class="current-price">${isDebt ? 'Debt Balance: ' : ''}${formatCurrency(investment.price)}</span>
                         <span class="price-change ${priceChange >= 0 ? 'price-up' : 'price-down'}">
                             ${priceChange >= 0 ? '+' : ''}${formatCurrency(priceChange)} (${priceChangePercent}%)
                         </span>
                     </div>
                     <div class="investment-controls">
-                        <input type="number" class="amount-input" placeholder="Amount to invest" min="1" max="${gameState.cash}" id="amount-${key}">
-                        <button class="invest-btn" onclick="makeInvestment('${key}')" ${gameState.cash <= 0 ? 'disabled' : ''}>
-                            Invest
+                        <input type="number" class="amount-input" placeholder="${inputPlaceholder}" min="1" max="${gameState.cash}" id="amount-${key}">
+                        <button class="invest-btn" onclick="makeInvestment('${key}')" ${gameState.cash <= 0 ? 'disabled' : ''} style="${isDebt ? 'background: linear-gradient(135deg, #ef4444, #dc2626);' : ''}">
+                            ${buttonText}
                         </button>
                     </div>
                 `;
@@ -485,6 +504,9 @@
             portfolioDiv.innerHTML = '';
 
             let hasInvestments = false;
+            let hasDebts = false;
+
+            // Show regular investments
             Object.keys(gameState.portfolio).forEach(key => {
                 if (gameState.portfolio[key] > 0) {
                     hasInvestments = true;
@@ -505,8 +527,32 @@
                 }
             });
 
-            if (!hasInvestments) {
-                portfolioDiv.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No investments yet. Start building your portfolio!</p>';
+            // Show remaining debts
+            Object.keys(gameState.investments).forEach(key => {
+                const investment = gameState.investments[key];
+                if (investment.isDebt && investment.price > 0) {
+                    hasDebts = true;
+                    const item = document.createElement('div');
+                    item.className = 'portfolio-item';
+                    item.style.background = '#fef2f2';
+                    item.style.border = '1px solid #fecaca';
+                    item.innerHTML = `
+                        <div>
+                            <strong>💳 ${investment.name}</strong><br>
+                            <small>Remaining debt balance</small>
+                        </div>
+                        <div style="text-align: right; color: #ef4444;">
+                            <strong>-${formatCurrency(investment.price)}</strong>
+                        </div>
+                    `;
+                    portfolioDiv.appendChild(item);
+                }
+            });
+
+            if (!hasInvestments && !hasDebts) {
+                portfolioDiv.innerHTML = '<p style="text-align: center; color: #666; padding: 20px;">No investments yet and no debts remaining. Start building your portfolio!</p>';
+            } else if (!hasInvestments && hasDebts) {
+                portfolioDiv.innerHTML += '<p style="text-align: center; color: #ef4444; padding: 10px; font-weight: bold;">⚠️ Consider paying off high-interest debt before investing!</p>';
             }
         }
 
@@ -515,7 +561,7 @@
             const amount = parseInt(amountInput.value);
 
             if (!amount || amount <= 0) {
-                alert('Please enter a valid investment amount');
+                alert('Please enter a valid amount');
                 return;
             }
 
@@ -525,16 +571,30 @@
             }
 
             const investment = gameState.investments[investmentKey];
-            const shares = Math.floor(amount / investment.price);
-            const totalCost = shares * investment.price;
+            
+            if (investment.isDebt) {
+                // Paying off debt - reduce debt balance
+                const debtPayment = Math.min(amount, investment.price);
+                investment.price -= debtPayment;
+                gameState.cash -= debtPayment;
+                
+                if (investment.price <= 0) {
+                    investment.price = 0;
+                    alert(`Congratulations! You've paid off your ${investment.name}!`);
+                }
+            } else {
+                // Regular investment - buy shares
+                const shares = Math.floor(amount / investment.price);
+                const totalCost = shares * investment.price;
 
-            if (shares === 0) {
-                alert('Investment amount too small to purchase shares');
-                return;
+                if (shares === 0) {
+                    alert('Investment amount too small to purchase shares');
+                    return;
+                }
+
+                gameState.cash -= totalCost;
+                gameState.portfolio[investmentKey] = (gameState.portfolio[investmentKey] || 0) + shares;
             }
-
-            gameState.cash -= totalCost;
-            gameState.portfolio[investmentKey] = (gameState.portfolio[investmentKey] || 0) + shares;
 
             amountInput.value = '';
             updateDisplay();
@@ -611,12 +671,14 @@
                     "Economic indicators suggest continued expansion.",
                     "Tech sector experiencing significant growth this period.",
                     "Interest rates remain stable, benefiting bond markets.",
-                    "Real estate market shows strong fundamentals.",
-                    "Cryptocurrency market experiencing high volatility.",
+                    "Financial advisors recommend paying off high-interest debt first.",
+                    "Credit card interest rates continue to climb nationwide.",
                     "Global markets react to positive economic data.",
                     "Investors showing confidence in current market conditions.",
                     "New regulations may impact certain investment sectors.",
-                    "Market analysts predict continued growth in coming periods."
+                    "Market analysts predict continued growth in coming periods.",
+                    "Consumer debt reaches new highs - experts advise caution.",
+                    "Payday loan regulations tighten in several states."
                 ]
             };
 
