@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -19,10 +20,181 @@
             line-height: 1.6;
         }
 
-        .container {
-            max-width: 1400px;
+        .game-layout {
+            display: flex;
+            max-width: 1600px;
             margin: 0 auto;
+            gap: 24px;
             padding: 24px;
+            min-height: 100vh;
+        }
+
+        .main-game {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .sidebar {
+            width: 300px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 16px;
+            padding: 24px;
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.3);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.1);
+            height: fit-content;
+            position: sticky;
+            top: 24px;
+        }
+
+        .sidebar h3 {
+            color: #1f2937;
+            font-size: 1.4em;
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 12px;
+            border-bottom: 2px solid #e5e7eb;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .info-card {
+            background: linear-gradient(135deg, #f8fafc, #f1f5f9);
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .info-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.08);
+            border-color: #3b82f6;
+        }
+
+        .info-card h4 {
+            color: #1e40af;
+            font-size: 1em;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .info-card p {
+            color: #64748b;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .tip-card {
+            background: linear-gradient(135deg, #fef3c7, #fde68a);
+            border: 1px solid #f59e0b;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .tip-card h4 {
+            color: #92400e;
+            font-size: 1em;
+            font-weight: 600;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tip-card p {
+            color: #a16207;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+
+        .progress-tracker {
+            background: linear-gradient(135deg, #dbeafe, #bfdbfe);
+            border: 1px solid #3b82f6;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .progress-tracker h4 {
+            color: #1e40af;
+            font-size: 1em;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .progress-bar {
+            background: rgba(59, 130, 246, 0.2);
+            border-radius: 8px;
+            height: 8px;
+            overflow: hidden;
+            margin-bottom: 8px;
+        }
+
+        .progress-fill {
+            background: linear-gradient(90deg, #3b82f6, #6366f1);
+            height: 100%;
+            width: 3.33%;
+            transition: width 0.5s ease;
+            border-radius: 8px;
+        }
+
+        .progress-text {
+            color: #1e40af;
+            font-size: 0.85em;
+            font-weight: 500;
+            text-align: center;
+        }
+
+        .quick-stats {
+            background: linear-gradient(135deg, #f0fdf4, #dcfce7);
+            border: 1px solid #22c55e;
+            border-radius: 12px;
+            padding: 16px;
+        }
+
+        .quick-stats h4 {
+            color: #166534;
+            font-size: 1em;
+            font-weight: 600;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .stat-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+
+        .stat-label {
+            color: #166534;
+            font-size: 0.85em;
+            font-weight: 500;
+        }
+
+        .stat-value-small {
+            color: #059669;
+            font-size: 0.85em;
+            font-weight: 600;
+            font-family: 'SF Mono', 'Monaco', 'Consolas', monospace;
+        }
+
+        .container {
+            width: 100%;
         }
 
         .header {
@@ -478,9 +650,26 @@
         .stat-card:nth-child(4) .stat-value { color: #f59e0b; }
 
         /* Mobile responsiveness */
+        @media (max-width: 1200px) {
+            .game-layout {
+                flex-direction: column;
+            }
+            
+            .sidebar {
+                width: 100%;
+                position: static;
+                order: -1;
+            }
+        }
+
         @media (max-width: 768px) {
-            .container {
+            .game-layout {
                 padding: 16px;
+                gap: 16px;
+            }
+            
+            .sidebar {
+                padding: 20px;
             }
             
             .header h1 {
@@ -535,70 +724,125 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>📈 Build Your Portfolio</h1>
-            <p>Make smart investment decisions over 30 months and watch your money grow!</p>
+    <div class="game-layout">
+        <div class="main-game">
+            <div class="container">
+                <div class="header">
+                    <h1>📈 Build Your Portfolio</h1>
+                    <p>Make smart investment decisions over 30 months and watch your money grow!</p>
+                </div>
+
+                <div class="game-stats">
+                    <div class="stat-card">
+                        <h3>💰 Available Cash</h3>
+                        <div class="stat-value" id="cash">$5,000</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>📊 Investment Value</h3>
+                        <div class="stat-value" id="portfolioValue">$0</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>💎 Total Worth</h3>
+                        <div class="stat-value" id="totalWorth">$5,000</div>
+                    </div>
+                    <div class="stat-card">
+                        <h3>📅 Month</h3>
+                        <div class="stat-value" id="period">1 / 30</div>
+                    </div>
+                </div>
+
+                <div class="news-section" id="newsSection">
+                    <h3>📰 Market News</h3>
+                    <p id="newsText">Welcome to the investment game! You start with $5,000. Make wise choices!</p>
+                </div>
+
+                <div class="debt-section" id="debtSection">
+                    <h2>💳 Debt Options</h2>
+                    <div class="debt-options" id="debtOptions">
+                        <!-- Debt cards will be generated here -->
+                    </div>
+                </div>
+
+                <div class="investment-section" id="investmentSection" style="display: none;">
+                    <h2>💼 Investment Options</h2>
+                    <div class="investment-options" id="investmentOptions">
+                        <!-- Investment cards will be generated here -->
+                    </div>
+                </div>
+
+                <div class="portfolio-section">
+                    <h2>📋 Your Portfolio</h2>
+                    <div id="portfolio">
+                        <p style="text-align: center; color: #666; padding: 20px;">No investments yet. Start building your portfolio!</p>
+                    </div>
+                </div>
+
+                <div class="controls">
+                    <button class="next-period-btn" id="nextPeriodBtn">⏭️ Next Month</button>
+                    <button class="reset-btn" id="resetBtn">🔄 Reset Game</button>
+                </div>
+
+                <div class="game-over" id="gameOver" style="display: none;">
+                    <h2>🎉 Game Complete!</h2>
+                    <div class="final-score" id="finalScore">$0</div>
+                    <p>You've completed 30 months of investing!</p>
+                    <button class="reset-btn" onclick="resetGame()" style="margin-top: 20px;">Play Again</button>
+                </div>
+            </div>
         </div>
 
-        <div class="game-stats">
-            <div class="stat-card">
-                <h3>💰 Available Cash</h3>
-                <div class="stat-value" id="cash">$5,000</div>
+        <div class="sidebar">
+            <h3>🎯 Game Info</h3>
+            
+            <div class="progress-tracker">
+                <h4>📊 Progress</h4>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+                <div class="progress-text" id="progressText">Month 1 of 30</div>
             </div>
-            <div class="stat-card">
-                <h3>📊 Portfolio Value</h3>
-                <div class="stat-value" id="portfolioValue">$0</div>
-            </div>
-            <div class="stat-card">
-                <h3>💎 Total Worth</h3>
-                <div class="stat-value" id="totalWorth">$5,000</div>
-            </div>
-            <div class="stat-card">
-                <h3>📅 Month</h3>
-                <div class="stat-value" id="period">1 / 30</div>
-            </div>
-        </div>
 
-        <div class="news-section" id="newsSection">
-            <h3>📰 Market News</h3>
-            <p id="newsText">Welcome to the investment game! You start with $5,000. Make wise choices!</p>
-        </div>
-
-        <div class="debt-section" id="debtSection">
-            <h2>💳 Debt Options</h2>
-            <div class="debt-options" id="debtOptions">
-                <!-- Debt cards will be generated here -->
+            <div class="quick-stats">
+                <h4>⚡ Quick Stats</h4>
+                <div class="stat-row">
+                    <span class="stat-label">Return Rate:</span>
+                    <span class="stat-value-small" id="returnRate">0.0%</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Best Month:</span>
+                    <span class="stat-value-small" id="bestMonth">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Worst Month:</span>
+                    <span class="stat-value-small" id="worstMonth">-</span>
+                </div>
+                <div class="stat-row">
+                    <span class="stat-label">Risk Level:</span>
+                    <span class="stat-value-small" id="riskLevel">Low</span>
+                </div>
             </div>
-        </div>
 
-        <div class="investment-section" id="investmentSection" style="display: none;">
-            <h2>💼 Investment Options</h2>
-            <div class="investment-options" id="investmentOptions">
-                <!-- Investment cards will be generated here -->
+            <div class="info-card">
+                <h4>💡 Investment Tip</h4>
+                <p>Diversify your portfolio across different asset types to reduce risk while maintaining growth potential.</p>
             </div>
-        </div>
 
-        <div class="portfolio-section">
-            <h2>📋 Your Portfolio</h2>
-            <div id="portfolio">
-                <p style="text-align: center; color: #666; padding: 20px;">No investments yet. Start building your portfolio!</p>
+            <div class="tip-card">
+                <h4>⚠️ Strategy Tip</h4>
+                <p>Don't put all your money into one investment. Spread your risk across multiple options for better long-term results.</p>
             </div>
-        </div>
 
-        <div class="controls">
-            <button class="next-period-btn" id="nextPeriodBtn">⏭️ Next Month</button>
-            <button class="reset-btn" id="resetBtn">🔄 Reset Game</button>
-        </div>
+            <div class="info-card">
+                <h4>📈 Market Insights</h4>
+                <p>Pay attention to market news - it can give you hints about which investments might perform well in the coming months.</p>
+            </div>
 
-        <div class="game-over" id="gameOver" style="display: none;">
-            <h2>🎉 Game Complete!</h2>
-            <div class="final-score" id="finalScore">$0</div>
-            <p>You've completed 30 months of investing!</p>
-            <button class="reset-btn" onclick="resetGame()" style="margin-top: 20px;">Play Again</button>
+            <div class="info-card">
+                <h4>🎮 How to Play</h4>
+                <p>Start with debt options to build capital, then move to investments. Monitor market trends and adjust your strategy accordingly.</p>
+            </div>
         </div>
     </div>
-
     <script>
         // Game state
         let gameState = {
