@@ -404,7 +404,8 @@
                     description: 'Pay off high-interest credit card debt (1.5% monthly interest) - guaranteed return!',
                     volatility: 0.0,
                     isDebt: true,
-                    monthlyInterestRate: 0.015
+                    monthlyInterestRate: 0.015,
+                    dueDate: 12 // Due in 12 months
                 },
                 payday: { 
                     name: 'Payday Loan Debt', 
@@ -413,7 +414,8 @@
                     description: 'Pay off extremely high-interest payday loans (33.3% monthly interest) - urgent priority!',
                     volatility: 0.0,
                     isDebt: true,
-                    monthlyInterestRate: 0.333
+                    monthlyInterestRate: 0.333,
+                    dueDate: 6 // Due in 6 months
                 },
                 autoloan: { 
                     name: 'Auto Loan Debt', 
@@ -422,7 +424,8 @@
                     description: 'Pay off car loan debt (0.5% monthly interest) - moderate interest rate',
                     volatility: 0.0,
                     isDebt: true,
-                    monthlyInterestRate: 0.005
+                    monthlyInterestRate: 0.005,
+                    dueDate: 24 // Due in 24 months
                 },
                 mortgage: { 
                     name: 'Mortgage Debt', 
@@ -431,7 +434,8 @@
                     description: 'Pay extra on mortgage (0.33% monthly interest) - low interest, but guaranteed return',
                     volatility: 0.0,
                     isDebt: true,
-                    monthlyInterestRate: 0.0033
+                    monthlyInterestRate: 0.0033,
+                    dueDate: 30 // Due in 30 months
                 }
             },
             priceHistory: {},
@@ -477,6 +481,23 @@
                 if (investment.isDebt) {
                     // Debt grows with monthly interest
                     investment.price = Math.round(investment.price * (1 + investment.monthlyInterestRate));
+
+                    // Overdue penalty logic
+                    if (investment.dueDate && gameState.period > investment.dueDate && investment.price > 0) {
+                        // 5% penalty on remaining balance
+                        const penaltyAmount = Math.round(investment.price * 0.05);
+                        investment.price += penaltyAmount;
+                        // -5 credit score penalty
+                        creditScoreSystem.score = Math.max(300, creditScoreSystem.score - 5);
+                        creditScoreSystem.scoreHistory.push(creditScoreSystem.score);
+                        // Notify player
+                        showNotification(
+                            'warning',
+                            'Overdue Debt Penalty',
+                            `${investment.name} is overdue!\nA 5% penalty ($${penaltyAmount.toLocaleString()}) was added and your credit score dropped by 5 points.`,
+                            '⚠️'
+                        );
+                    }
                 } else {
                     // Regular investments fluctuate with market volatility
                     const change = (Math.random() - 0.5) * 2 * investment.volatility;
@@ -603,8 +624,21 @@
                 const priceChangePercent = priceHistory.length > 1 ? 
                     ((priceChange / priceHistory[priceHistory.length - 2]) * 100).toFixed(1) : 0;
 
+                let overdue = false;
+                let dueDateText = '';
+                if (investment.dueDate) {
+                    dueDateText = `<div class="debt-due-date">Due by Month <strong>${investment.dueDate}</strong></div>`;
+                    if (gameState.period > investment.dueDate) {
+                        overdue = true;
+                    }
+                }
+
                 const card = document.createElement('div');
                 card.className = 'investment-card debt-card';
+                if (overdue) {
+                    card.style.border = '2px solid #ef4444';
+                    card.style.background = '#fef2f2';
+                }
                 
                 let creditImpactText = '';
                 let cardStyle = '';
@@ -620,10 +654,12 @@
                     creditImpactText = '<div style="color: #6b7280;">💡 Moderate credit score improvement</div>';
                 }
                 
-                card.style.cssText = cardStyle;
+                card.style.cssText += cardStyle;
                 card.innerHTML = `
                     <h4>💳 ${investment.name}</h4>
                     <p>${investment.description}</p>
+                    ${dueDateText}
+                    ${overdue ? '<div style="color: #ef4444; font-weight: bold;">⚠️ Overdue! Pay immediately to avoid penalties.</div>' : ''}
                     ${creditImpactText}
                     ${investment.isRestructured ? 
                         `<div style="font-size: 0.9em; color: #6b7280; margin: 5px 0;">
@@ -994,7 +1030,8 @@
                         description: 'Pay off high-interest credit card debt (1.5% monthly interest) - guaranteed return!',
                         volatility: 0.0,
                         isDebt: true,
-                        monthlyInterestRate: 0.015
+                        monthlyInterestRate: 0.015,
+                        dueDate: 12 // Due in 12 months
                     },
                     payday: { 
                         name: 'Payday Loan Debt', 
@@ -1003,7 +1040,8 @@
                         description: 'Pay off extremely high-interest payday loans (33.3% monthly interest) - urgent priority!',
                         volatility: 0.0,
                         isDebt: true,
-                        monthlyInterestRate: 0.333
+                        monthlyInterestRate: 0.333,
+                        dueDate: 6 // Due in 6 months
                     },
                     autoloan: { 
                         name: 'Auto Loan Debt', 
@@ -1012,7 +1050,8 @@
                         description: 'Pay off car loan debt (0.5% monthly interest) - moderate interest rate',
                         volatility: 0.0,
                         isDebt: true,
-                        monthlyInterestRate: 0.005
+                        monthlyInterestRate: 0.005,
+                        dueDate: 24 // Due in 24 months
                     },
                     mortgage: { 
                         name: 'Mortgage Debt', 
@@ -1021,7 +1060,8 @@
                         description: 'Pay extra on mortgage (0.33% monthly interest) - low interest, but guaranteed return',
                         volatility: 0.0,
                         isDebt: true,
-                        monthlyInterestRate: 0.0033
+                        monthlyInterestRate: 0.0033,
+                        dueDate: 30 // Due in 30 months
                     }
                 },
                 priceHistory: {},
@@ -1356,34 +1396,66 @@
                 option.textContent = type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
                 typeSelect.appendChild(option);
             });
+            // Add Debt Extension as a batch option if at least one eligible debt
+            const extensionEligibleDebts = options.eligibleDebts.filter(d => {
+                const debtObj = gameState.investments[d.key];
+                if (debtObj.extensionUsed === undefined) debtObj.extensionUsed = false;
+                return d.balance > 0 && debtObj.dueDate !== undefined && debtObj.dueDate < 30 && !debtObj.extensionUsed;
+            });
+            const hasExtensionEligible = extensionEligibleDebts.length > 0;
+            if (hasExtensionEligible) {
+                const extOption = document.createElement('option');
+                extOption.value = 'debt_extension';
+                extOption.textContent = 'Debt Extension';
+                typeSelect.appendChild(extOption);
+            }
             
             // Show eligible debts for selection
             selectionDiv.innerHTML = '';
-            options.eligibleDebts.forEach(debt => {
-                const debtDiv = document.createElement('div');
-                debtDiv.className = 'debt-checkbox';
-                
-                const currentAnnualRate = (debt.currentRate * 12 * 100).toFixed(1);
-                const newAnnualRate = (options.newInterestRate * 12 * 100).toFixed(1);
-                const monthlySavings = Math.floor(debt.balance * (debt.currentRate - options.newInterestRate));
-                
-                debtDiv.innerHTML = `
-                    <input type="checkbox" name="selectedDebts" value="${debt.key}">
-                    <div class="debt-checkbox-label">
-                        <div class="debt-checkbox-name">${debt.name}</div>
-                        <div class="debt-checkbox-details">
-                            Balance: ${formatCurrency(debt.balance)}<br>
-                            <span style="color: #ef4444;">Current Rate: ${currentAnnualRate}% annual</span> → 
-                            <span style="color: #10b981;">New Rate: ${newAnnualRate}% annual</span><br>
-                            <span style="color: #10b981; font-weight: bold;">Monthly Interest Savings: ${formatCurrency(monthlySavings)}</span>
+            const restructuringType = typeSelect.value;
+            if (restructuringType === 'debt_extension' && !hasExtensionEligible) {
+                selectionDiv.innerHTML = `<div style='color:#ef4444; font-size:1em; margin:12px 0;'>No debts are eligible for extension. All debts have either reached the maximum due date or have already been extended once.</div>`;
+            } else {
+                options.eligibleDebts.forEach(debt => {
+                    const debtObj = gameState.investments[debt.key];
+                    if (debtObj.extensionUsed === undefined) debtObj.extensionUsed = false;
+                    const currentAnnualRate = (debt.currentRate * 12 * 100).toFixed(1);
+                    const newAnnualRate = (options.newInterestRate * 12 * 100).toFixed(1);
+                    const monthlySavings = Math.floor(debt.balance * (debt.currentRate - options.newInterestRate));
+                    const dueDate = debtObj.dueDate;
+                    const canExtend = dueDate !== undefined && dueDate < 30 && !debtObj.extensionUsed;
+                    let extraInfo = '';
+                    if (restructuringType === 'debt_extension') {
+                        if (debtObj.extensionUsed) {
+                            extraInfo = `<span style='color:#ef4444;'>Already extended once</span>`;
+                        } else {
+                            extraInfo = `<span style='color:#f59e0b;'>Cost: -10 credit score</span> <span style='color:#64748b;'>(One extension per debt)</span>`;
+                        }
+                    } else {
+                        extraInfo = `<span style='color:#10b981; font-weight: bold;'>Monthly Interest Savings: ${formatCurrency(monthlySavings)}</span>`;
+                    }
+                    selectionDiv.innerHTML += `
+                        <div class="debt-checkbox">
+                            <input type="checkbox" name="selectedDebts" value="${debt.key}" ${restructuringType === 'debt_extension' && !canExtend ? 'disabled' : ''}>
+                            <div class="debt-checkbox-label">
+                                <div class="debt-checkbox-name">${debt.name}</div>
+                                <div class="debt-checkbox-details">
+                                    Balance: ${formatCurrency(debt.balance)}<br>
+                                    <span style="color: #ef4444;">Current Rate: ${currentAnnualRate}% annual</span> → 
+                                    <span style="color: #10b981;">New Rate: ${newAnnualRate}% annual</span><br>
+                                    <span style="color:#64748b;">Due: Month ${dueDate !== undefined ? dueDate : 'N/A'}${canExtend ? '' : ' (Max)'}</span><br>
+                                    ${extraInfo}
+                                </div>
+                            </div>
                         </div>
-                    </div>
-                `;
-                selectionDiv.appendChild(debtDiv);
-            });
+                    `;
+                });
+            }
             
             controlsDiv.style.display = 'block';
             document.getElementById('restructuringOptions').style.display = 'none';
+            // Update debt selection UI when dropdown changes
+            typeSelect.onchange = showRestructuringControls;
         }
 
         function executeRestructuring() {
@@ -1395,22 +1467,50 @@
                 showNotification('error', 'No Debts Selected', 'Please select at least one debt to restructure.');
                 return;
             }
-            
+            if (restructuringType === 'debt_extension') {
+                // Batch debt extension logic
+                let anyMaxed = false;
+                let extendedCount = 0;
+                selectedDebts.forEach(debtKey => {
+                    const debt = gameState.investments[debtKey];
+                    if (debt.dueDate === undefined || debt.dueDate >= 30 || debt.extensionUsed) {
+                        anyMaxed = true;
+                    }
+                });
+                if (anyMaxed) {
+                    showNotification('error', 'Extension Not Allowed', 'One or more selected debts are already at the maximum due date (30) or have already been extended.');
+                    return;
+                }
+                selectedDebts.forEach(debtKey => {
+                    const debt = gameState.investments[debtKey];
+                    if (debt.dueDate !== undefined && debt.dueDate < 30 && !debt.extensionUsed) {
+                        debt.dueDate = Math.min(30, debt.dueDate + 6);
+                        debt.extensionUsed = true;
+                        extendedCount++;
+                    }
+                });
+                // Apply credit score penalty
+                const penalty = 10 * extendedCount;
+                creditScoreSystem.score = Math.max(300, creditScoreSystem.score - penalty);
+                creditScoreSystem.scoreHistory.push(creditScoreSystem.score);
+                showNotification('warning', 'Debt Extension Complete', `Extended due date by 6 months for ${extendedCount} debt(s). Credit score -${penalty}.`, '⏳');
+                cancelRestructuring();
+                updateDisplay();
+                return;
+            }
+            // Default: original restructuring logic
             const result = debtRestructuringSystem.executeRestructuring(selectedDebts, restructuringType);
-            
             if (result.success) {
                 let message = result.message;
                 if (result.scoreChange && result.scoreChange.scoreChange !== 0) {
                     message += `\n\nCredit Score Impact:\nOld Score: ${result.scoreChange.oldScore}\nNew Score: ${result.scoreChange.newScore}\nChange: ${result.scoreChange.scoreChange > 0 ? '+' : ''}${result.scoreChange.scoreChange} points`;
                 }
-                
                 showNotification(
                     'success',
                     'Restructuring Successful! 🔄',
                     message,
                     '🔄'
                 );
-                
                 cancelRestructuring();
                 updateDisplay();
             } else {
