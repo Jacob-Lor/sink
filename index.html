@@ -1584,6 +1584,467 @@
         document.getElementById('nextPeriodBtn').addEventListener('click', nextPeriod);
         document.getElementById('resetBtn').addEventListener('click', resetGame);
 
+        // Debt Restructuring System Enhancement
+        class DebtRestructuringSystem {
+            constructor(creditScoreSystem) {
+                this.creditScoreSystem = creditScoreSystem;
+                this.restructuringHistory = [];
+                this.availableRestructurings = 0;
+                this.lastRestructuringPeriod = 0;
+            }
+
+            // Calculate available restructuring options based on credit score
+            getRestructuringOptions() {
+                const score = this.creditScoreSystem.score;
+                const activeDebts = this.getEligibleDebts();
+                
+                if (activeDebts.length === 0) {
+                    return { canRestructure: false, reason: "No eligible debts to restructure" };
+                }
+
+                // Check if enough time has passed since last restructuring
+                const periodsSinceLastRestructuring = gameState.period - this.lastRestructuringPeriod;
+                if (periodsSinceLastRestructuring < 6 && this.restructuringHistory.length > 0) {
+                    return { 
+                        canRestructure: false, 
+                        reason: `Must wait ${6 - periodsSinceLastRestructuring} more months before restructuring again` 
+                    };
+                }
+
+                let maxDebtAmount = 0;
+                let newInterestRate = 0;
+                let restructuringFee = 0;
+                let availableTypes = [];
+
+                if (score >= 750) {
+                    // Excellent credit - Best terms
+                    maxDebtAmount = this.getTotalEligibleDebt();
+                    newInterestRate = 0.003; // 0.3% monthly (3.6% annual)
+                    restructuringFee = 0.01; // 1% fee
+                    availableTypes = ['consolidation', 'refinancing', 'balance_transfer'];
+                } else if (score >= 700) {
+                    // Good credit - Good terms
+                    maxDebtAmount = this.getTotalEligibleDebt() * 0.8;
+                    newInterestRate = 0.005; // 0.5% monthly (6% annual)
+                    restructuringFee = 0.02; // 2% fee
+                    availableTypes = ['consolidation', 'refinancing'];
+                } else if (score >= 650) {
+                    // Fair credit - Moderate terms
+                    maxDebtAmount = this.getTotalEligibleDebt() * 0.6;
+                    newInterestRate = 0.008; // 0.8% monthly (9.6% annual)
+                    restructuringFee = 0.03; // 3% fee
+                    availableTypes = ['consolidation'];
+                } else if (score >= 600) {
+                    // Poor credit - Limited options
+                    maxDebtAmount = this.getTotalEligibleDebt() * 0.4;
+                    newInterestRate = 0.012; // 1.2% monthly (14.4% annual)
+                    restructuringFee = 0.05; // 5% fee
+                    availableTypes = ['consolidation'];
+                } else {
+                    // Very poor credit - No restructuring available
+                    return { 
+                        canRestructure: false, 
+                        reason: "Credit score too low for debt restructuring (minimum 600 required)" 
+                    };
+                }
+
+                return {
+                    canRestructure: true,
+                    maxDebtAmount: Math.floor(maxDebtAmount),
+                    newInterestRate: newInterestRate,
+                    restructuringFee: restructuringFee,
+                    availableTypes: availableTypes,
+                    eligibleDebts: activeDebts
+                };
+            }
+
+            // Get debts eligible for restructuring (exclude mortgage for most cases)
+            getEligibleDebts() {
+                const eligibleDebts = [];
+                Object.keys(gameState.investments).forEach(key => {
+                    const investment = gameState.investments[key];
+                    if (investment.isDebt && investment.price > 0) {
+                        // Mortgage requires excellent credit to restructure
+                        if (key === 'mortgage' && this.creditScoreSystem.score < 750) {
+                            return;
+                        }
+                        eligibleDebts.push({
+                            key: key,
+                            name: investment.name,
+                            balance: investment.price,
+                            currentRate: investment.monthlyInterestRate
+                        });
+                    }
+                });
+                return eligibleDebts;
+            }
+
+            getTotalEligibleDebt() {
+                return this.getEligibleDebts().reduce((total, debt) => total + debt.balance, 0);
+            }
+
+            // Execute debt restructuring
+            executeRestructuring(selectedDebts, restructuringType) {
+                const options = this.getRestructuringOptions();
+                if (!options.canRestructure) {
+                    return { success: false, message: options.reason };
+                }
+
+                const totalSelectedDebt = selectedDebts.reduce((sum, debtKey) => {
+                    return sum + gameState.investments[debtKey].price;
+                }, 0);
+
+                if (totalSelectedDebt > options.maxDebtAmount) {
+                    return { 
+                        success: false, 
+                        message: `Selected debt (${formatCurrency(totalSelectedDebt)}) exceeds maximum allowed (${formatCurrency(options.maxDebtAmount)})` 
+                    };
+                }
+
+                // Calculate restructuring fee
+                const fee = Math.floor(totalSelectedDebt * options.restructuringFee);
+                if (gameState.cash < fee) {
+                    return { 
+                        success: false, 
+                        message: `Insufficient funds to pay restructuring fee of ${formatCurrency(fee)}` 
+                    };
+                }
+
+                // Execute the restructuring
+                const oldDebts = [];
+                selectedDebts.forEach(debtKey => {
+                    const debt = gameState.investments[debtKey];
+                    oldDebts.push({
+                        name: debt.name,
+                        balance: debt.price,
+                        rate: debt.monthlyInterestRate
+                    });
+                    // Clear the old debt
+                    debt.price = 0;
+                });
+
+                // Create new consolidated debt
+                const newDebtKey = `restructured_${gameState.period}`;
+                gameState.investments[newDebtKey] = {
+                    name: `Restructured Debt (${restructuringType})`,
+                    price: totalSelectedDebt,
+                    basePrice: totalSelectedDebt,
+                    description: `Consolidated debt with improved ${(options.newInterestRate * 100).toFixed(2)}% monthly interest rate`,
+                    volatility: 0.0,
+                    isDebt: true,
+                    monthlyInterestRate: options.newInterestRate,
+                    isRestructured: true,
+                    originalDebts: oldDebts
+                };
+
+                // Initialize price history for new debt
+                gameState.priceHistory[newDebtKey] = [totalSelectedDebt];
+
+                // Pay the fee
+                gameState.cash -= fee;
+
+                // Record the restructuring
+                this.restructuringHistory.push({
+                    period: gameState.period,
+                    type: restructuringType,
+                    originalDebts: oldDebts,
+                    newDebt: {
+                        amount: totalSelectedDebt,
+                        rate: options.newInterestRate
+                    },
+                    fee: fee,
+                    creditScore: this.creditScoreSystem.score
+                });
+
+                this.lastRestructuringPeriod = gameState.period;
+
+                // Small credit score impact for successful restructuring
+                const scoreChange = this.creditScoreSystem.processDebtRestructuring(restructuringType, totalSelectedDebt);
+
+                return {
+                    success: true,
+                    message: `Successfully restructured ${formatCurrency(totalSelectedDebt)} of debt!\nNew rate: ${(options.newInterestRate * 100).toFixed(2)}% monthly\nFee paid: ${formatCurrency(fee)}`,
+                    scoreChange: scoreChange,
+                    newDebtKey: newDebtKey
+                };
+            }
+
+            getRestructuringHistory() {
+                return this.restructuringHistory;
+            }
+        }
+
+        // Extend CreditScoreSystem with restructuring impact
+        CreditScoreSystem.prototype.processDebtRestructuring = function(restructuringType, debtAmount) {
+            let scoreChange = 0;
+            
+            // Restructuring has mixed impact on credit score
+            // Positive: Shows proactive debt management
+            // Negative: Can be seen as financial stress indicator
+            
+            if (this.score >= 700) {
+                // Good credit - minimal impact, slightly positive for proactive management
+                scoreChange = Math.min(3, Math.floor(debtAmount / 10000));
+            } else if (this.score >= 600) {
+                // Fair credit - neutral to slightly negative impact
+                scoreChange = -Math.min(2, Math.floor(debtAmount / 15000));
+            } else {
+                // Poor credit - more negative impact
+                scoreChange = -Math.min(5, Math.floor(debtAmount / 8000));
+            }
+
+            // Type-specific adjustments
+            switch(restructuringType) {
+                case 'balance_transfer':
+                    scoreChange += 1; // Slightly better as it's moving to lower rate
+                    break;
+                case 'refinancing':
+                    // Neutral - no additional impact
+                    break;
+                case 'consolidation':
+                    scoreChange -= 1; // Slightly worse as it may indicate financial stress
+                    break;
+            }
+
+            const oldScore = this.score;
+            this.score = Math.max(300, Math.min(850, Math.round(this.score + scoreChange)));
+            this.scoreHistory.push(this.score);
+
+            return {
+                oldScore: oldScore,
+                newScore: this.score,
+                scoreChange: scoreChange
+            };
+        };
+
+        // Initialize debt restructuring system
+        let debtRestructuringSystem;
+
+        // Enhanced game initialization
+        const originalResetGame = resetGame;
+        resetGame = function() {
+            originalResetGame();
+            debtRestructuringSystem = new DebtRestructuringSystem(creditScoreSystem);
+            updateDisplay();
+        };
+
+        // Enhanced display update to include restructuring options
+        const originalUpdateDisplay = updateDisplay;
+        updateDisplay = function() {
+            originalUpdateDisplay();
+            updateRestructuringDisplay();
+        };
+
+        function updateRestructuringDisplay() {
+            // Add restructuring section if it doesn't exist
+            let restructuringSection = document.getElementById('restructuringSection');
+            if (!restructuringSection) {
+                const debtSection = document.getElementById('debtSection');
+                if (debtSection) {
+                    restructuringSection = document.createElement('div');
+                    restructuringSection.id = 'restructuringSection';
+                    restructuringSection.className = 'section';
+                    restructuringSection.innerHTML = `
+                        <h3>💳 Debt Restructuring</h3>
+                        <p>Consolidate or refinance your debts for better terms based on your credit score</p>
+                        <div id="restructuringOptions"></div>
+                        <div id="restructuringControls" style="display: none;">
+                            <h4>Select Debts to Restructure:</h4>
+                            <div id="debtSelection"></div>
+                            <div style="margin-top: 15px;">
+                                <label for="restructuringType">Restructuring Type:</label>
+                                <select id="restructuringType">
+                                    <option value="consolidation">Debt Consolidation</option>
+                                    <option value="refinancing">Refinancing</option>
+                                    <option value="balance_transfer">Balance Transfer</option>
+                                </select>
+                            </div>
+                            <div style="margin-top: 15px;">
+                                <button id="executeRestructuringBtn" onclick="executeRestructuring()">Execute Restructuring</button>
+                                <button onclick="cancelRestructuring()">Cancel</button>
+                            </div>
+                        </div>
+                    `;
+                    debtSection.parentNode.insertBefore(restructuringSection, debtSection.nextSibling);
+                }
+            }
+
+            if (restructuringSection && debtRestructuringSystem) {
+                const options = debtRestructuringSystem.getRestructuringOptions();
+                const optionsDiv = document.getElementById('restructuringOptions');
+                
+                if (options.canRestructure) {
+                    const annualRate = (options.newInterestRate * 12 * 100).toFixed(1);
+                    const feePercent = (options.restructuringFee * 100).toFixed(1);
+                    
+                    optionsDiv.innerHTML = `
+                        <div style="background: #e8f5e8; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <h4 style="color: #10b981; margin-top: 0;">✅ Restructuring Available</h4>
+                            <p><strong>Credit Score:</strong> ${creditScoreSystem.score} (${creditScoreSystem.getCreditScoreRange().range})</p>
+                            <p><strong>Maximum Debt Amount:</strong> ${formatCurrency(options.maxDebtAmount)}</p>
+                            <p><strong>New Interest Rate:</strong> ${(options.newInterestRate * 100).toFixed(2)}% monthly (${annualRate}% annual)</p>
+                            <p><strong>Restructuring Fee:</strong> ${feePercent}% of restructured amount</p>
+                            <p><strong>Available Types:</strong> ${options.availableTypes.join(', ')}</p>
+                            <button onclick="showRestructuringControls()">Start Restructuring Process</button>
+                        </div>
+                    `;
+                } else {
+                    optionsDiv.innerHTML = `
+                        <div style="background: #fef2f2; padding: 15px; border-radius: 8px; margin-bottom: 15px;">
+                            <h4 style="color: #ef4444; margin-top: 0;">❌ Restructuring Not Available</h4>
+                            <p><strong>Reason:</strong> ${options.reason}</p>
+                            <p><strong>Current Credit Score:</strong> ${creditScoreSystem.score}</p>
+                            ${creditScoreSystem.score < 600 ? 
+                                '<p style="color: #f59e0b;"><strong>Tip:</strong> Pay down debts to improve your credit score and unlock restructuring options!</p>' : 
+                                ''}
+                        </div>
+                    `;
+                }
+            }
+        }
+
+        function showRestructuringControls() {
+            const options = debtRestructuringSystem.getRestructuringOptions();
+            const controlsDiv = document.getElementById('restructuringControls');
+            const selectionDiv = document.getElementById('debtSelection');
+            const typeSelect = document.getElementById('restructuringType');
+            
+            // Update available restructuring types
+            typeSelect.innerHTML = '';
+            options.availableTypes.forEach(type => {
+                const option = document.createElement('option');
+                option.value = type;
+                option.textContent = type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
+                typeSelect.appendChild(option);
+            });
+            
+            // Show eligible debts for selection
+            selectionDiv.innerHTML = '';
+            options.eligibleDebts.forEach(debt => {
+                const debtDiv = document.createElement('div');
+                debtDiv.style.cssText = 'margin: 10px 0; padding: 10px; border: 1px solid #ddd; border-radius: 5px;';
+                
+                const currentAnnualRate = (debt.currentRate * 12 * 100).toFixed(1);
+                const newAnnualRate = (options.newInterestRate * 12 * 100).toFixed(1);
+                const monthlySavings = Math.floor(debt.balance * (debt.currentRate - options.newInterestRate));
+                
+                debtDiv.innerHTML = `
+                    <label style="display: flex; align-items: center; cursor: pointer;">
+                        <input type="checkbox" name="selectedDebts" value="${debt.key}" style="margin-right: 10px;">
+                        <div style="flex: 1;">
+                            <strong>${debt.name}</strong><br>
+                            <span>Balance: ${formatCurrency(debt.balance)}</span><br>
+                            <span style="color: #ef4444;">Current Rate: ${currentAnnualRate}% annual</span> → 
+                            <span style="color: #10b981;">New Rate: ${newAnnualRate}% annual</span><br>
+                            <span style="color: #10b981; font-weight: bold;">Monthly Interest Savings: ${formatCurrency(monthlySavings)}</span>
+                        </div>
+                    </label>
+                `;
+                selectionDiv.appendChild(debtDiv);
+            });
+            
+            controlsDiv.style.display = 'block';
+            document.getElementById('restructuringOptions').style.display = 'none';
+        }
+
+        function executeRestructuring() {
+            const selectedCheckboxes = document.querySelectorAll('input[name="selectedDebts"]:checked');
+            const selectedDebts = Array.from(selectedCheckboxes).map(cb => cb.value);
+            const restructuringType = document.getElementById('restructuringType').value;
+            
+            if (selectedDebts.length === 0) {
+                alert('Please select at least one debt to restructure');
+                return;
+            }
+            
+            const result = debtRestructuringSystem.executeRestructuring(selectedDebts, restructuringType);
+            
+            if (result.success) {
+                let message = result.message;
+                if (result.scoreChange && result.scoreChange.scoreChange !== 0) {
+                    message += `\n\nCredit Score Impact:\nOld Score: ${result.scoreChange.oldScore}\nNew Score: ${result.scoreChange.newScore}\nChange: ${result.scoreChange.scoreChange > 0 ? '+' : ''}${result.scoreChange.scoreChange} points`;
+                }
+                alert(message);
+                cancelRestructuring();
+                updateDisplay();
+            } else {
+                alert(`Restructuring Failed: ${result.message}`);
+            }
+        }
+
+        function cancelRestructuring() {
+            document.getElementById('restructuringControls').style.display = 'none';
+            document.getElementById('restructuringOptions').style.display = 'block';
+            updateRestructuringDisplay();
+        }
+
+        // Enhanced updateDebtOptions to handle restructured debts
+        const originalUpdateDebtOptions = updateDebtOptions;
+        updateDebtOptions = function() {
+            const debtOptions = document.getElementById('debtOptions');
+            debtOptions.innerHTML = '';
+
+            Object.keys(gameState.investments).forEach(key => {
+                const investment = gameState.investments[key];
+                if (!investment.isDebt) return;
+
+                const priceHistory = gameState.priceHistory[key];
+                const priceChange = priceHistory.length > 1 ? 
+                    investment.price - priceHistory[priceHistory.length - 2] : 0;
+                const priceChangePercent = priceHistory.length > 1 ? 
+                    ((priceChange / priceHistory[priceHistory.length - 2]) * 100).toFixed(1) : 0;
+
+                const card = document.createElement('div');
+                card.className = 'investment-card debt-card';
+                
+                let creditImpactText = '';
+                let cardStyle = '';
+                
+                if (investment.isRestructured) {
+                    cardStyle = 'border: 2px solid #3b82f6; background: #eff6ff;';
+                    creditImpactText = '<div style="color: #3b82f6; font-weight: bold;">🔄 Restructured Debt - Improved Terms!</div>';
+                } else if (key === 'payday') {
+                    creditImpactText = '<div style="color: #10b981; font-weight: bold;">💡 Big credit score boost when paid off!</div>';
+                } else if (key === 'creditcard') {
+                    creditImpactText = '<div style="color: #3b82f6; font-weight: bold;">💡 Good credit score boost when paid off!</div>';
+                } else {
+                    creditImpactText = '<div style="color: #6b7280;">💡 Moderate credit score improvement</div>';
+                }
+                
+                card.style.cssText = cardStyle;
+                card.innerHTML = `
+                    <h4>💳 ${investment.name}</h4>
+                    <p>${investment.description}</p>
+                    ${creditImpactText}
+                    ${investment.isRestructured ? 
+                        `<div style="font-size: 0.9em; color: #6b7280; margin: 5px 0;">
+                            Original debts consolidated: 
+                            ${investment.originalDebts.map(d => d.name).join(', ')}
+                        </div>` : ''}
+                    <div class="price-info">
+                        <span class="current-price">Debt Balance: ${formatCurrency(investment.price)}</span>
+                        <span class="price-change ${priceChange >= 0 ? 'price-up' : 'price-down'}">
+                            ${priceChange >= 0 ? '+' : ''}${formatCurrency(priceChange)} (${priceChangePercent}%)
+                        </span>
+                    </div>
+                    <div class="investment-controls">
+                        <input type="number" class="amount-input" placeholder="Amount to pay off" min="1" max="${gameState.cash}" id="amount-${key}">
+                        <button class="invest-btn debt-btn" onclick="makeInvestment('${key}')" ${gameState.cash <= 0 ? 'disabled' : ''}>
+                            Pay Off
+                        </button>
+                    </div>
+                `;
+                debtOptions.appendChild(card);
+            });
+        };
+
+        // Initialize the enhanced system
+        if (typeof creditScoreSystem !== 'undefined') {
+            debtRestructuringSystem = new DebtRestructuringSystem(creditScoreSystem);
+        }
+
+
+
         // Initialize game
         updateDisplay();
     </script>
