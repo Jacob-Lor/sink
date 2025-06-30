@@ -48,19 +48,14 @@
 
                 <div class="restructuring-section" id="restructuringSection">
                     <h3>🔄 Debt Restructuring Options</h3>
-                    <p>Consolidate or refinance your debts for better terms based on your credit score</p>
+                    <p>Consolidate or refinance your debts for better terms based on your credit score.</p>
+                    <div style="margin-bottom: 10px; color: #64748b; font-size: 0.98em;">
+                      <strong>Note:</strong> Mortgage debt can only be refinanced if your credit score is 750 or higher.
+                    </div>
                     <div id="restructuringOptions"></div>
                     <div id="restructuringControls" style="display: none;">
                         <h4>Select Debts to Restructure:</h4>
                         <div id="debtSelection"></div>
-                        <div style="margin-top: 15px;">
-                            <label for="restructuringType">Restructuring Type:</label>
-                            <select id="restructuringType">
-                                <option value="consolidation">Debt Consolidation</option>
-                                <option value="refinancing">Refinancing</option>
-                                <option value="balance_transfer">Balance Transfer</option>
-                            </select>
-                        </div>
                         <div style="margin-top: 15px;">
                             <button class="execute-restructuring-btn" id="executeRestructuringBtn">Execute Restructuring</button>
                             <button class="cancel-restructuring-btn">Cancel</button>
@@ -663,7 +658,7 @@
                 
                 card.style.cssText += cardStyle;
                 card.innerHTML = `
-                    <h4>💳 ${investment.name}</h4>
+                    <h4 class="debt-title-tooltip" data-debt="${key}">💳 ${investment.name}</h4>
                     <p>${investment.description}</p>
                     ${dueDateText}
                     ${overdue ? '<div style="color: #ef4444; font-weight: bold;">⚠️ Overdue! Pay immediately to avoid penalties.</div>' : ''}
@@ -699,6 +694,52 @@
                     </div>
                 `;
             }
+
+            // Add tooltip logic for debt titles
+            setTimeout(() => {
+                document.querySelectorAll('.debt-title-tooltip').forEach(el => {
+                    el.onmouseenter = function(e) {
+                        let tooltip = document.getElementById('debtTooltip');
+                        if (!tooltip) {
+                            tooltip = document.createElement('div');
+                            tooltip.id = 'debtTooltip';
+                            tooltip.style.position = 'fixed';
+                            tooltip.style.zIndex = 10000;
+                            tooltip.style.background = '#fff';
+                            tooltip.style.border = '1.5px solid #2563eb';
+                            tooltip.style.borderRadius = '8px';
+                            tooltip.style.boxShadow = '0 4px 24px #0002';
+                            tooltip.style.padding = '14px 18px';
+                            tooltip.style.fontSize = '1em';
+                            tooltip.style.color = '#222';
+                            tooltip.style.pointerEvents = 'none';
+                            document.body.appendChild(tooltip);
+                        }
+                        const debtKey = this.getAttribute('data-debt');
+                        let info = '';
+                        if (debtKey === 'mortgage') {
+                            info = '<strong>Mortgage Refinancing:</strong><br>Requires credit score 750+ to refinance.';
+                        } else if (debtKey === 'autoloan') {
+                            info = '<strong>Auto Loan Refinancing:</strong><br>Available if eligible for restructuring.';
+                        } else if (debtKey === 'creditcard') {
+                            info = '<strong>Credit Card Refinancing:</strong><br>Available if eligible for restructuring.';
+                        } else if (debtKey === 'payday') {
+                            info = '<strong>Payday Loan Refinancing:</strong><br>Available if eligible for restructuring.';
+                        } else {
+                            info = '<strong>Refinancing:</strong><br>Available if eligible for restructuring.';
+                        }
+                        tooltip.innerHTML = info;
+                        const rect = this.getBoundingClientRect();
+                        tooltip.style.top = (rect.bottom + 8) + 'px';
+                        tooltip.style.left = (rect.left + rect.width/2 - 120) + 'px';
+                        tooltip.style.display = 'block';
+                    };
+                    el.onmouseleave = function() {
+                        const tooltip = document.getElementById('debtTooltip');
+                        if (tooltip) tooltip.style.display = 'none';
+                    };
+                });
+            }, 0);
         }
 
         function updateInvestmentOptions() {
@@ -1393,119 +1434,47 @@
             const options = debtRestructuringSystem.getRestructuringOptions();
             const controlsDiv = document.getElementById('restructuringControls');
             const selectionDiv = document.getElementById('debtSelection');
-            const typeSelect = document.getElementById('restructuringType');
-            
-            // Update available restructuring types
-            typeSelect.innerHTML = '';
-            options.availableTypes.forEach(type => {
-                const option = document.createElement('option');
-                option.value = type;
-                option.textContent = type.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase());
-                typeSelect.appendChild(option);
-            });
-            // Add Debt Extension as a batch option if at least one eligible debt
-            const extensionEligibleDebts = options.eligibleDebts.filter(d => {
-                const debtObj = gameState.investments[d.key];
-                if (debtObj.extensionUsed === undefined) debtObj.extensionUsed = false;
-                return d.balance > 0 && debtObj.dueDate !== undefined && debtObj.dueDate < 30 && !debtObj.extensionUsed;
-            });
-            const hasExtensionEligible = extensionEligibleDebts.length > 0;
-            if (hasExtensionEligible) {
-                const extOption = document.createElement('option');
-                extOption.value = 'debt_extension';
-                extOption.textContent = 'Debt Extension';
-                typeSelect.appendChild(extOption);
-            }
-            
             // Show eligible debts for selection
             selectionDiv.innerHTML = '';
-            const restructuringType = typeSelect.value;
-            if (restructuringType === 'debt_extension' && !hasExtensionEligible) {
-                selectionDiv.innerHTML = `<div style='color:#ef4444; font-size:1em; margin:12px 0;'>No debts are eligible for extension. All debts have either reached the maximum due date or have already been extended once.</div>`;
-            } else {
-                options.eligibleDebts.forEach(debt => {
-                    const debtObj = gameState.investments[debt.key];
-                    if (debtObj.extensionUsed === undefined) debtObj.extensionUsed = false;
-                    const currentAnnualRate = (debt.currentRate * 12 * 100).toFixed(1);
-                    const newAnnualRate = (options.newInterestRate * 12 * 100).toFixed(1);
-                    const monthlySavings = Math.floor(debt.balance * (debt.currentRate - options.newInterestRate));
-                    const dueDate = debtObj.dueDate;
-                    const canExtend = dueDate !== undefined && dueDate < 30 && !debtObj.extensionUsed;
-                    let extraInfo = '';
-                    if (restructuringType === 'debt_extension') {
-                        if (debtObj.extensionUsed) {
-                            extraInfo = `<span style='color:#ef4444;'>Already extended once</span>`;
-                        } else {
-                            extraInfo = `<span style='color:#f59e0b;'>Cost: -10 credit score</span> <span style='color:#64748b;'>(One extension per debt)</span>`;
-                        }
-                    } else {
-                        extraInfo = `<span style='color:#10b981; font-weight: bold;'>Monthly Interest Savings: ${formatCurrency(monthlySavings)}</span>`;
-                    }
-                    selectionDiv.innerHTML += `
-                        <div class="debt-checkbox">
-                            <input type="checkbox" name="selectedDebts" value="${debt.key}" ${restructuringType === 'debt_extension' && !canExtend ? 'disabled' : ''}>
-                            <div class="debt-checkbox-label">
-                                <div class="debt-checkbox-name">${debt.name}</div>
-                                <div class="debt-checkbox-details">
-                                    Balance: ${formatCurrency(debt.balance)}<br>
-                                    <span style="color: #ef4444;">Current Rate: ${currentAnnualRate}% annual</span> → 
-                                    <span style="color: #10b981;">New Rate: ${newAnnualRate}% annual</span><br>
-                                    <span style="color:#64748b;">Due: Month ${dueDate !== undefined ? dueDate : 'N/A'}${canExtend ? '' : ' (Max)'}</span><br>
-                                    ${extraInfo}
-                                </div>
+            options.eligibleDebts.forEach(debt => {
+                const debtObj = gameState.investments[debt.key];
+                const currentAnnualRate = (debt.currentRate * 12 * 100).toFixed(1);
+                const newAnnualRate = (options.newInterestRate * 12 * 100).toFixed(1);
+                const monthlySavings = Math.floor(debt.balance * (debt.currentRate - options.newInterestRate));
+                const dueDate = debtObj.dueDate;
+                let extraInfo = `<span style='color:#10b981; font-weight: bold;'>Monthly Interest Savings: ${formatCurrency(monthlySavings)}</span>`;
+                selectionDiv.innerHTML += `
+                    <div class="debt-checkbox">
+                        <input type="checkbox" name="selectedDebts" value="${debt.key}">
+                        <div class="debt-checkbox-label">
+                            <div class="debt-checkbox-name">${debt.name}</div>
+                            <div class="debt-checkbox-details">
+                                Balance: ${formatCurrency(debt.balance)}<br>
+                                <span style="color: #ef4444;">Current Rate: ${currentAnnualRate}% annual</span> → 
+                                <span style="color: #10b981;">New Rate: ${newAnnualRate}% annual</span><br>
+                                <span style="color:#64748b;">Due: Month ${dueDate !== undefined ? dueDate : 'N/A'}</span><br>
+                                ${extraInfo}
                             </div>
                         </div>
-                    `;
-                });
-            }
-            
+                    </div>
+                `;
+            });
             controlsDiv.style.display = 'block';
             document.getElementById('restructuringOptions').style.display = 'none';
-            // Update debt selection UI when dropdown changes
-            typeSelect.onchange = showRestructuringControls;
+            attachRestructuringActionListeners();
+            updateRestructuringActionButton();
         }
 
         function executeRestructuring() {
             const selectedCheckboxes = document.querySelectorAll('input[name="selectedDebts"]:checked');
             const selectedDebts = Array.from(selectedCheckboxes).map(cb => cb.value);
-            const restructuringType = document.getElementById('restructuringType').value;
-            
             if (selectedDebts.length === 0) {
                 showNotification('error', 'No Debts Selected', 'Please select at least one debt to restructure.');
                 return;
             }
-            if (restructuringType === 'debt_extension') {
-                // Batch debt extension logic
-                let anyMaxed = false;
-                let extendedCount = 0;
-                selectedDebts.forEach(debtKey => {
-                    const debt = gameState.investments[debtKey];
-                    if (debt.dueDate === undefined || debt.dueDate >= 30 || debt.extensionUsed) {
-                        anyMaxed = true;
-                    }
-                });
-                if (anyMaxed) {
-                    showNotification('error', 'Extension Not Allowed', 'One or more selected debts are already at the maximum due date (30) or have already been extended.');
-                    return;
-                }
-                selectedDebts.forEach(debtKey => {
-                    const debt = gameState.investments[debtKey];
-                    if (debt.dueDate !== undefined && debt.dueDate < 30 && !debt.extensionUsed) {
-                        debt.dueDate = Math.min(30, debt.dueDate + 6);
-                        debt.extensionUsed = true;
-                        extendedCount++;
-                    }
-                });
-                // Apply credit score penalty
-                const penalty = 10 * extendedCount;
-                creditScoreSystem.score = Math.max(300, creditScoreSystem.score - penalty);
-                creditScoreSystem.scoreHistory.push(creditScoreSystem.score);
-                showNotification('warning', 'Debt Extension Complete', `Extended due date by 6 months for ${extendedCount} debt(s). Credit score -${penalty}.`, '⏳');
-                cancelRestructuring();
-                updateDisplay();
-                return;
-            }
-            // Default: original restructuring logic
+            // Determine restructuring type based on number of selected debts
+            let restructuringType = 'consolidation';
+            if (selectedDebts.length === 1) restructuringType = 'refinancing';
             const result = debtRestructuringSystem.executeRestructuring(selectedDebts, restructuringType);
             if (result.success) {
                 let message = result.message;
@@ -1514,7 +1483,7 @@
                 }
                 showNotification(
                     'success',
-                    'Restructuring Successful! 🔄',
+                    restructuringType === 'refinancing' ? 'Refinancing Successful! 🔄' : 'Consolidation Successful! 🔄',
                     message,
                     '🔄'
                 );
@@ -1731,66 +1700,75 @@
           if (btn) btn.onclick = startGuidedTour;
         });
 
-        // Patch restructuring controls to update button label and result message
         function updateRestructuringActionButton() {
             const selectedCheckboxes = document.querySelectorAll('input[name="selectedDebts"]:checked');
             const selectedCount = selectedCheckboxes.length;
-            const restructuringType = document.getElementById('restructuringType').value;
             const actionBtn = document.getElementById('executeRestructuringBtn');
             if (!actionBtn) return;
-            if (restructuringType === 'consolidation' || restructuringType === 'refinancing' || restructuringType === 'balance_transfer') {
-                if (selectedCount === 1) {
-                    actionBtn.textContent = 'REFINANCE';
-                } else if (selectedCount > 1) {
-                    actionBtn.textContent = 'CONSOLIDATE';
-                } else {
-                    actionBtn.textContent = 'EXECUTE RESTRUCTURING';
-                }
+            if (selectedCount === 1) {
+                actionBtn.textContent = 'REFINANCE';
+            } else if (selectedCount > 1) {
+                actionBtn.textContent = 'CONSOLIDATE';
             } else {
                 actionBtn.textContent = 'EXECUTE RESTRUCTURING';
             }
         }
-        // Attach to checkbox and dropdown changes
+
         function attachRestructuringActionListeners() {
             const selectionDiv = document.getElementById('debtSelection');
             if (!selectionDiv) return;
             selectionDiv.querySelectorAll('input[name="selectedDebts"]').forEach(cb => {
                 cb.onchange = updateRestructuringActionButton;
             });
-            const typeSelect = document.getElementById('restructuringType');
-            if (typeSelect) typeSelect.onchange = updateRestructuringActionButton;
         }
-        // Patch showRestructuringControls to call attachRestructuringActionListeners at the end
-        const origShowRestructuringControls = showRestructuringControls;
-        showRestructuringControls = function() {
-            origShowRestructuringControls.apply(this, arguments);
-            setTimeout(attachRestructuringActionListeners, 0);
-            setTimeout(updateRestructuringActionButton, 0);
-        };
-        // Patch executeRestructuring to update result message
-        const origExecuteRestructuring = executeRestructuring;
-        executeRestructuring = function() {
-            const selectedCheckboxes = document.querySelectorAll('input[name="selectedDebts"]:checked');
-            const selectedCount = selectedCheckboxes.length;
-            const restructuringType = document.getElementById('restructuringType').value;
-            let actionWord = 'Restructuring';
-            if ((restructuringType === 'consolidation' || restructuringType === 'refinancing' || restructuringType === 'balance_transfer')) {
-                if (selectedCount === 1) actionWord = 'Refinancing';
-                else if (selectedCount > 1) actionWord = 'Consolidation';
+
+        // After DOMContentLoaded or in a setTimeout, add this JS:
+        setTimeout(() => {
+            const creditScoreEl = document.getElementById('creditScore');
+            if (creditScoreEl) {
+                creditScoreEl.style.cursor = 'pointer';
+                creditScoreEl.onmouseenter = function(e) {
+                    let tooltip = document.getElementById('creditScoreTooltip');
+                    if (!tooltip) {
+                        tooltip = document.createElement('div');
+                        tooltip.id = 'creditScoreTooltip';
+                        tooltip.style.position = 'fixed';
+                        tooltip.style.zIndex = 10000;
+                        tooltip.style.background = '#fff';
+                        tooltip.style.border = '1.5px solid #10b981';
+                        tooltip.style.borderRadius = '8px';
+                        tooltip.style.boxShadow = '0 4px 24px #0002';
+                        tooltip.style.padding = '16px 20px';
+                        tooltip.style.fontSize = '1em';
+                        tooltip.style.color = '#222';
+                        tooltip.style.pointerEvents = 'none';
+                        tooltip.style.maxWidth = '320px';
+                        document.body.appendChild(tooltip);
+                    }
+                    tooltip.innerHTML = `
+                        <strong>How does your credit score affect refinancing?</strong><br><br>
+                        <ul style='margin:0 0 0 18px; padding:0; font-size:0.98em;'>
+                          <li>Higher credit scores unlock <b>lower interest rates</b> and <b>smaller fees</b> when restructuring debt.</li>
+                          <li>More options become available as your score improves (e.g., balance transfers, refinancing, consolidation).</li>
+                          <li><b>750+</b>: You can refinance your mortgage for the best possible terms.</li>
+                          <li><b>700+</b>: Good rates and more restructuring types.</li>
+                          <li><b>650-699</b>: Moderate rates, limited options.</li>
+                          <li><b>600-649</b>: Only basic consolidation available, higher fees.</li>
+                          <li><b>Below 600</b>: No restructuring available.</li>
+                        </ul>
+                        <div style='margin-top:8px; color:#64748b; font-size:0.97em;'>Tip: Pay debts on time and keep balances low to boost your score!</div>
+                    `;
+                    const rect = this.getBoundingClientRect();
+                    tooltip.style.top = (rect.bottom + 8) + 'px';
+                    tooltip.style.left = (rect.left + rect.width/2 - 150) + 'px';
+                    tooltip.style.display = 'block';
+                };
+                creditScoreEl.onmouseleave = function() {
+                    const tooltip = document.getElementById('creditScoreTooltip');
+                    if (tooltip) tooltip.style.display = 'none';
+                };
             }
-            window._restructuringActionWord = actionWord;
-            origExecuteRestructuring.apply(this, arguments);
-        };
-        // Patch showNotification to use the correct action word
-        const origShowNotification = showNotification;
-        showNotification = function(type, title, message, icon) {
-            if (window._restructuringActionWord && type === 'success' && (title.includes('Restructuring Successful') || title.includes('Restructuring Complete'))) {
-                title = title.replace('Restructuring', window._restructuringActionWord);
-                message = message.replace('Restructuring', window._restructuringActionWord);
-            }
-            origShowNotification(type, title, message, icon);
-            window._restructuringActionWord = undefined;
-        };
+        }, 0);
     </script>
 </body>
 </html>
