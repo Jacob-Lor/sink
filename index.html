@@ -138,6 +138,9 @@
                 <h4>💡 Strategy Tip</h4>
                 <p>Focus on paying off high-interest debts first, then diversify your investments between stocks and bonds for balanced growth.</p>
             </div>
+
+            <!-- Add Help button to sidebar -->
+            <button id="showGuidedTourBtn" style="margin:16px 0 0 0; width:100%; background:#f0f4ff; color:#2563eb; border:1px solid #2563eb; border-radius:6px; padding:8px 0; font-weight:bold; cursor:pointer;">❓ Show Tutorial</button>
         </div>
     </div>
 
@@ -177,6 +180,10 @@
             </div>
         </div>
     </div>
+
+    <!-- Add guided tour overlay and tooltips -->
+    <div id="guidedTourOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999;"></div>
+    <div id="guidedTourTooltip" style="display:none; position:absolute; z-index:10000; background:#fff; border-radius:10px; box-shadow:0 4px 24px #0002; padding:22px 20px; max-width:340px; min-width:220px; font-size:1.05em; color:#222;"></div>
 
     <script>
 // Credit Score System Class
@@ -1588,6 +1595,141 @@
 
         // Initialize game
         updateDisplay();
+
+        // Add guided tour overlay and tooltips
+        const guidedTourHTML = `
+          <div id="guidedTourOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999;"></div>
+          <div id="guidedTourTooltip" style="display:none; position:absolute; z-index:10000; background:#fff; border-radius:10px; box-shadow:0 4px 24px #0002; padding:22px 20px; max-width:340px; min-width:220px; font-size:1.05em; color:#222;"></div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', guidedTourHTML);
+
+        // Add Help button to sidebar
+        const sidebar = document.querySelector('.sidebar');
+        if (sidebar && !document.getElementById('showGuidedTourBtn')) {
+          const helpBtn = document.createElement('button');
+          helpBtn.id = 'showGuidedTourBtn';
+          helpBtn.textContent = '❓ Show Tutorial';
+          helpBtn.style = 'margin:16px 0 0 0; width:100%; background:#f0f4ff; color:#2563eb; border:1px solid #2563eb; border-radius:6px; padding:8px 0; font-weight:bold; cursor:pointer;';
+          helpBtn.onclick = startGuidedTour;
+          sidebar.appendChild(helpBtn);
+        }
+
+        // Define steps for the guided tour
+        const guidedTourSteps = [
+          {
+            selector: '.header',
+            title: 'Welcome!',
+            content: 'This is the main game area. Your goal is to build your portfolio, pay off debts, and grow your net worth over 30 months.'
+          },
+          {
+            selector: '.game-stats',
+            title: 'Game Stats',
+            content: 'Here you can see your available cash, investment value, total worth, and the current month.'
+          },
+          {
+            selector: '.debt-section',
+            title: 'Debt Section',
+            content: 'Pay off debts before their due dates to avoid penalties. Overdue debts increase in balance and lower your credit score.'
+          },
+          {
+            selector: '.investment-section',
+            title: 'Investment Section',
+            content: 'After month 5, you can invest in stocks and bonds. Use your cash to buy shares and grow your portfolio.'
+          },
+          {
+            selector: '.portfolio-section',
+            title: 'Your Portfolio',
+            content: 'This area shows your current investments and remaining debts.'
+          },
+          {
+            selector: '.restructuring-section',
+            title: 'Debt Restructuring',
+            content: 'When eligible, you can consolidate or refinance debts for better terms.'
+          },
+          {
+            selector: '.sidebar',
+            title: 'Sidebar & Progress',
+            content: 'Track your credit score, month progress, and get strategy tips here. You can also restart the game or revisit this tutorial.'
+          },
+          {
+            selector: '.controls',
+            title: 'Game Controls',
+            content: 'Use these buttons to advance to the next month or reset the game.'
+          },
+          {
+            selector: null,
+            title: 'All Set!',
+            content: 'You are ready to play! Remember, you can revisit this tutorial anytime by clicking the "Show Tutorial" button in the sidebar.'
+          }
+        ];
+
+        let guidedTourStep = 0;
+        function startGuidedTour() {
+          guidedTourStep = 0;
+          document.getElementById('guidedTourOverlay').style.display = 'block';
+          showGuidedTourStep();
+        }
+        function endGuidedTour() {
+          document.getElementById('guidedTourOverlay').style.display = 'none';
+          document.getElementById('guidedTourTooltip').style.display = 'none';
+          removeHighlight();
+        }
+        function showGuidedTourStep() {
+          const step = guidedTourSteps[guidedTourStep];
+          const tooltip = document.getElementById('guidedTourTooltip');
+          removeHighlight();
+          if (step.selector) {
+            const el = document.querySelector(step.selector);
+            if (el) {
+              el.classList.add('guided-tour-highlight');
+              const rect = el.getBoundingClientRect();
+              tooltip.style.display = 'block';
+              // Position tooltip smartly
+              let top = rect.bottom + 12;
+              let left = rect.left + (rect.width/2) - 160;
+              if (top + 200 > window.innerHeight) top = rect.top - 220;
+              if (left < 10) left = 10;
+              if (left + 340 > window.innerWidth) left = window.innerWidth - 350;
+              tooltip.style.top = `${top + window.scrollY}px`;
+              tooltip.style.left = `${left + window.scrollX}px`;
+              tooltip.style.transform = '';
+            }
+          } else {
+            tooltip.style.display = 'block';
+            tooltip.style.top = '50%';
+            tooltip.style.left = '50%';
+            tooltip.style.transform = 'translate(-50%, -50%)';
+          }
+          tooltip.innerHTML = `
+            <h2 style='margin-bottom:10px;'>${step.title}</h2>
+            <div style='margin-bottom:18px;'>${step.content}</div>
+            <div style='text-align:right;'>
+              ${guidedTourStep > 0 ? '<button id="guidedTourPrevBtn" style="margin-right:8px;">Previous</button>' : ''}
+              ${guidedTourStep < guidedTourSteps.length-1 ? '<button id="guidedTourNextBtn">Next</button>' : '<button id="guidedTourFinishBtn" style="background:#2563eb; color:#fff; border:none; border-radius:6px; padding:8px 18px; font-weight:bold;">Finish</button>'}
+            </div>
+          `;
+          if (guidedTourStep > 0) document.getElementById('guidedTourPrevBtn').onclick = function() { guidedTourStep--; showGuidedTourStep(); };
+          if (guidedTourStep < guidedTourSteps.length-1) document.getElementById('guidedTourNextBtn').onclick = function() { guidedTourStep++; showGuidedTourStep(); };
+          if (guidedTourStep === guidedTourSteps.length-1) document.getElementById('guidedTourFinishBtn').onclick = endGuidedTour;
+        }
+        function removeHighlight() {
+          document.querySelectorAll('.guided-tour-highlight').forEach(el => el.classList.remove('guided-tour-highlight'));
+        }
+        // Add highlight style if not present
+        if (!document.getElementById('guidedTourHighlightStyle')) {
+          const style = document.createElement('style');
+          style.id = 'guidedTourHighlightStyle';
+          style.innerHTML = `.guided-tour-highlight { outline: 3px solid #f59e0b !important; box-shadow: 0 0 0 6px #fef9c3 !important; z-index:10001 !important; position:relative; }`;
+          document.head.appendChild(style);
+        }
+        // Attach to window for global access
+        window.startGuidedTour = startGuidedTour;
+
+        // Attach event after DOM is ready
+        document.addEventListener('DOMContentLoaded', function() {
+          const btn = document.getElementById('showGuidedTourBtn');
+          if (btn) btn.onclick = startGuidedTour;
+        });
     </script>
 </body>
 </html>
