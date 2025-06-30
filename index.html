@@ -778,6 +778,8 @@ let investmentChart, debtChart;
                 const priceChangePercent = priceHistory.length > 1 ? 
                     ((priceChange / priceHistory[priceHistory.length - 2]) * 100).toFixed(1) : 0;
 
+                const sharesOwned = gameState.portfolio[key] || 0;
+
                 const card = document.createElement('div');
                 card.className = 'investment-card';
                 
@@ -795,6 +797,13 @@ let investmentChart, debtChart;
                         <button class="invest-btn" onclick="makeInvestment('${key}')" ${gameState.cash <= 0 ? 'disabled' : ''}>
                             Invest
                         </button>
+                        ${sharesOwned > 0 ? `
+                        <input type="number" class="amount-input" placeholder="Shares to sell" min="1" max="${sharesOwned}" id="sell-amount-${key}" style="margin-left:8px;">
+                        <button class="sell-btn" onclick="sellInvestment('${key}')" style="margin-left:4px;">
+                            Sell
+                        </button>
+                        <span style="margin-left:8px; color:#64748b; font-size:0.95em;">Owned: ${sharesOwned}</span>
+                        ` : ''}
                     </div>
                 `;
                 investmentOptions.appendChild(card);
@@ -2135,6 +2144,31 @@ let investmentChart, debtChart;
                 }
             });
             renderCharts();
+        }
+
+        // Add sellInvestment function
+        function sellInvestment(investmentKey) {
+            const sharesOwned = gameState.portfolio[investmentKey] || 0;
+            const sellInput = document.getElementById(`sell-amount-${investmentKey}`);
+            const sellAmount = parseInt(sellInput.value);
+            if (!sellAmount || sellAmount <= 0) {
+                showNotification('error', 'Invalid Amount', 'Please enter a valid number of shares to sell.');
+                return;
+            }
+            if (sellAmount > sharesOwned) {
+                showNotification('error', 'Not Enough Shares', `You only own ${sharesOwned} shares.`);
+                return;
+            }
+            const investment = gameState.investments[investmentKey];
+            const totalValue = sellAmount * investment.price;
+            gameState.portfolio[investmentKey] -= sellAmount;
+            if (gameState.portfolio[investmentKey] <= 0) {
+                delete gameState.portfolio[investmentKey];
+            }
+            gameState.cash += totalValue;
+            showNotification('success', 'Investment Sold', `You sold ${sellAmount} shares of ${investment.name} for ${formatCurrency(totalValue)}.`);
+            sellInput.value = '';
+            updateDisplay();
         }
     </script>
 </body>

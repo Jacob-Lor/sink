@@ -1510,3 +1510,25 @@ p {
     margin-bottom: 12px;
     color: #2563eb;
 }
+
+.sell-btn {
+    background: #b91c1c;
+    color: #fff;
+    border: 1.5px solid #991b1b;
+    padding: 8px 16px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 0.98em;
+    cursor: pointer;
+    transition: all 0.16s cubic-bezier(0.25, 0.1, 0.25, 1);
+    box-shadow: 0 1px 6px #991b1b22;
+    letter-spacing: 0.1px;
+    text-transform: none;
+}
+
+.sell-btn:hover {
+    background: #991b1b;
+    border-color: #7f1d1d;
+    outline: 2px solid #f59e0b33;
+    box-shadow: 0 2px 12px #991b1b33;
+}
