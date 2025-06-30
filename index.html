@@ -133,27 +133,6 @@
                 <div class="progress-text" id="progressText">Month 1 of 30</div>
             </div>
 
-            <!-- Quick Stats -->
-            <div class="quick-stats">
-                <h4>⚡ Quick Stats</h4>
-                <div class="stat-row">
-                    <span class="stat-label">Return Rate:</span>
-                    <span class="stat-value-small" id="returnRate">0.0%</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Best Month:</span>
-                    <span class="stat-value-small" id="bestMonth">-</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Worst Month:</span>
-                    <span class="stat-value-small" id="worstMonth">-</span>
-                </div>
-                <div class="stat-row">
-                    <span class="stat-label">Risk Level:</span>
-                    <span class="stat-value-small" id="riskLevel">Low</span>
-                </div>
-            </div>
-
             <!-- Strategy Tip -->
             <div class="tip-card">
                 <h4>💡 Strategy Tip</h4>
@@ -616,7 +595,7 @@
 
             Object.keys(gameState.investments).forEach(key => {
                 const investment = gameState.investments[key];
-                if (!investment.isDebt) return;
+                if (!investment.isDebt || investment.price <= 0) return; // Skip if not debt or fully paid
 
                 const priceHistory = gameState.priceHistory[key];
                 const priceChange = priceHistory.length > 1 ? 
@@ -666,6 +645,17 @@
                 `;
                 debtOptions.appendChild(card);
             });
+
+            // Show message if no debts remain
+            if (debtOptions.children.length === 0) {
+                debtOptions.innerHTML = `
+                    <div style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; background: #f0fdf4; border: 2px solid #22c55e; border-radius: 12px; color: #166534;">
+                        <h3 style="margin-bottom: 12px; color: #166534;">🎉 Congratulations!</h3>
+                        <p style="font-size: 1.1rem; margin-bottom: 8px;">You've successfully paid off all your debts!</p>
+                        <p style="color: #059669;">Your credit score has improved significantly. You can now focus on building your investment portfolio.</p>
+                    </div>
+                `;
+            }
         }
 
         function updateInvestmentOptions() {
