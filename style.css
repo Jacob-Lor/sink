@@ -1390,14 +1390,21 @@ p {
 
 .restructuring-option .fee-badge {
     display: inline-block;
-    background: rgba(5, 150, 105, 0.1);
-    color: var(--success-color);
+    background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+    color: white;
     padding: 4px 8px;
     border-radius: var(--radius-sm);
-    font-size: 0.8rem;
+    font-size: 0.75rem;
     font-weight: 600;
-    margin-left: 6px;
-    border: 1px solid rgba(5, 150, 105, 0.2);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    box-shadow: var(--shadow-sm);
+    transition: var(--transition-fast);
+}
+
+.restructuring-option .fee-badge:hover {
+    transform: scale(1.05);
+    box-shadow: var(--shadow-md);
 }
 
 .restructuring-controls {
