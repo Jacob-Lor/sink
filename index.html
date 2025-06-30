@@ -1730,6 +1730,67 @@
           const btn = document.getElementById('showGuidedTourBtn');
           if (btn) btn.onclick = startGuidedTour;
         });
+
+        // Patch restructuring controls to update button label and result message
+        function updateRestructuringActionButton() {
+            const selectedCheckboxes = document.querySelectorAll('input[name="selectedDebts"]:checked');
+            const selectedCount = selectedCheckboxes.length;
+            const restructuringType = document.getElementById('restructuringType').value;
+            const actionBtn = document.getElementById('executeRestructuringBtn');
+            if (!actionBtn) return;
+            if (restructuringType === 'consolidation' || restructuringType === 'refinancing' || restructuringType === 'balance_transfer') {
+                if (selectedCount === 1) {
+                    actionBtn.textContent = 'REFINANCE';
+                } else if (selectedCount > 1) {
+                    actionBtn.textContent = 'CONSOLIDATE';
+                } else {
+                    actionBtn.textContent = 'EXECUTE RESTRUCTURING';
+                }
+            } else {
+                actionBtn.textContent = 'EXECUTE RESTRUCTURING';
+            }
+        }
+        // Attach to checkbox and dropdown changes
+        function attachRestructuringActionListeners() {
+            const selectionDiv = document.getElementById('debtSelection');
+            if (!selectionDiv) return;
+            selectionDiv.querySelectorAll('input[name="selectedDebts"]').forEach(cb => {
+                cb.onchange = updateRestructuringActionButton;
+            });
+            const typeSelect = document.getElementById('restructuringType');
+            if (typeSelect) typeSelect.onchange = updateRestructuringActionButton;
+        }
+        // Patch showRestructuringControls to call attachRestructuringActionListeners at the end
+        const origShowRestructuringControls = showRestructuringControls;
+        showRestructuringControls = function() {
+            origShowRestructuringControls.apply(this, arguments);
+            setTimeout(attachRestructuringActionListeners, 0);
+            setTimeout(updateRestructuringActionButton, 0);
+        };
+        // Patch executeRestructuring to update result message
+        const origExecuteRestructuring = executeRestructuring;
+        executeRestructuring = function() {
+            const selectedCheckboxes = document.querySelectorAll('input[name="selectedDebts"]:checked');
+            const selectedCount = selectedCheckboxes.length;
+            const restructuringType = document.getElementById('restructuringType').value;
+            let actionWord = 'Restructuring';
+            if ((restructuringType === 'consolidation' || restructuringType === 'refinancing' || restructuringType === 'balance_transfer')) {
+                if (selectedCount === 1) actionWord = 'Refinancing';
+                else if (selectedCount > 1) actionWord = 'Consolidation';
+            }
+            window._restructuringActionWord = actionWord;
+            origExecuteRestructuring.apply(this, arguments);
+        };
+        // Patch showNotification to use the correct action word
+        const origShowNotification = showNotification;
+        showNotification = function(type, title, message, icon) {
+            if (window._restructuringActionWord && type === 'success' && (title.includes('Restructuring Successful') || title.includes('Restructuring Complete'))) {
+                title = title.replace('Restructuring', window._restructuringActionWord);
+                message = message.replace('Restructuring', window._restructuringActionWord);
+            }
+            origShowNotification(type, title, message, icon);
+            window._restructuringActionWord = undefined;
+        };
     </script>
 </body>
 </html>
