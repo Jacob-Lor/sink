@@ -35,7 +35,7 @@
         }
 
         .sidebar {
-            width: 300px;
+            width: 400px;
             background: rgba(255, 255, 255, 0.95);
             border-radius: 16px;
             padding: 24px;
@@ -793,7 +793,22 @@
 
         <div class="sidebar">
             <h3>🎯 Game Info</h3>
-            
+            <!-- Credit Score Section (add this to your HTML) -->
+            <div class="stats-section" style="background: repeating-linear-gradient(90deg, #d3d3d3, #8e8d8d 1px, #c0c0c0 2px); background-blend-mode: multiply; color: white; margin: 20px 0; padding: 20px; border-radius: 10px; border: solid;">
+                <h3 style="margin: 0 0 15px 0; color: white;">📊 Credit Score</h3>
+                <div style="display: flex; align-items: center; gap: 20px; flex-wrap: wrap;">
+                    <div style="text-align: center;">
+                        <div style="font-size: 36px; font-weight: bold;" id="creditScore">580</div>
+                        <div style="font-size: 14px; font-weight: bold;" id="creditRange">Fair</div>
+                    </div>
+                    <div style="flex: 1; min-width: 200px;">
+                        <div style="font-size: 14px; margin-bottom: 10px;" id="creditDescription">Your credit is fair - keep improving!</div>
+                        <div style="background: rgba(255,255,255,0.2); padding: 10px; border-radius: 5px; font-size: 12px;" id="creditFactors">
+                            <!-- Credit factors will be populated by JavaScript -->
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div class="progress-tracker">
                 <h4>📊 Progress</h4>
                 <div class="progress-bar">
@@ -821,30 +836,211 @@
                     <span class="stat-value-small" id="riskLevel">Low</span>
                 </div>
             </div>
-
-            <div class="info-card">
-                <h4>💡 Investment Tip</h4>
-                <p>Diversify your portfolio across different asset types to reduce risk while maintaining growth potential.</p>
-            </div>
-
             <div class="tip-card">
                 <h4>⚠️ Strategy Tip</h4>
                 <p>Don't put all your money into one investment. Spread your risk across multiple options for better long-term results.</p>
             </div>
-
-            <div class="info-card">
-                <h4>📈 Market Insights</h4>
-                <p>Pay attention to market news - it can give you hints about which investments might perform well in the coming months.</p>
-            </div>
-
-            <div class="info-card">
-                <h4>🎮 How to Play</h4>
-                <p>Start with debt options to build capital, then move to investments. Monitor market trends and adjust your strategy accordingly.</p>
-            </div>
         </div>
     </div>
     <script>
-        // Game state
+// Credit Score System Class
+        class CreditScoreSystem {
+            constructor() {
+                this.score = 580; // Starting with fair credit
+                this.paymentHistory = [];
+                this.accountAge = 12; // Start with 1 year credit history
+                this.consecutiveOnTimePayments = 0;
+                this.totalPaymentsMade = 0;
+                this.latePayments = 0;
+                this.totalDebtPaidOff = 0;
+                this.initialTotalDebt = 0;
+                this.creditUtilization = 0;
+                this.scoreHistory = [580];
+                
+                // Calculate initial debt for utilization tracking
+                this.calculateInitialDebt();
+            }
+
+            calculateInitialDebt() {
+                this.initialTotalDebt = 8500 + 1200 + 15000 + 45000; // Sum of all initial debts
+            }
+
+            // Calculate current credit utilization ratio
+            calculateCreditUtilization() {
+                const currentTotalDebt = this.getCurrentTotalDebt();
+                const creditCardDebt = gameState.investments.creditcard.price;
+                const creditCardLimit = 10000; // Assume $10k credit limit
+                
+                if (creditCardLimit > 0) {
+                    this.creditUtilization = (creditCardDebt / creditCardLimit) * 100;
+                } else {
+                    this.creditUtilization = 0;
+                }
+                
+                return this.creditUtilization;
+            }
+
+            getCurrentTotalDebt() {
+                let totalDebt = 0;
+                Object.keys(gameState.investments).forEach(key => {
+                    const investment = gameState.investments[key];
+                    if (investment.isDebt && investment.price > 0) {
+                        totalDebt += investment.price;
+                    }
+                });
+                return totalDebt;
+            }
+
+            // Process a debt payment and update credit score
+            processDebtPayment(debtType, paymentAmount, debtRemaining) {
+                const payment = {
+                    debtType: debtType,
+                    amount: paymentAmount,
+                    remainingDebt: debtRemaining,
+                    date: gameState.period,
+                    onTime: true // Assume all payments in game are on time
+                };
+
+                this.paymentHistory.push(payment);
+                this.totalPaymentsMade++;
+                this.consecutiveOnTimePayments++;
+                this.totalDebtPaidOff += paymentAmount;
+
+                // Calculate score change
+                const oldScore = this.score;
+                this.updateCreditScore(payment);
+                const scoreChange = this.score - oldScore;
+
+                // Add to score history
+                this.scoreHistory.push(this.score);
+
+                return {
+                    oldScore: oldScore,
+                    newScore: this.score,
+                    scoreChange: scoreChange
+                };
+            }
+
+            updateCreditScore(payment) {
+                let scoreChange = 0;
+
+                // 1. Payment History (35% of score) - Most important factor
+                if (payment.onTime) {
+                    // Base points for making payment
+                    scoreChange += Math.min(3, payment.amount / 1000); // Up to 3 points per $1000 paid
+                    
+                    // Bonus for consecutive payments
+                    if (this.consecutiveOnTimePayments >= 6) {
+                        scoreChange += 2; // Bonus for payment consistency
+                    }
+                    
+                    // Extra bonus for paying off high-interest debt
+                    if (payment.debtType === 'payday' && payment.remainingDebt === 0) {
+                        scoreChange += 15; // Big boost for paying off payday loans
+                    } else if (payment.debtType === 'creditcard' && payment.remainingDebt === 0) {
+                        scoreChange += 12; // Good boost for paying off credit cards
+                    }
+                }
+
+                // 2. Credit Utilization (30% of score)
+                const utilizationChange = this.calculateUtilizationScoreChange();
+                scoreChange += utilizationChange;
+
+                // 3. Length of Credit History (15% of score)
+                this.accountAge++; // Age increases each period
+                if (this.accountAge % 12 === 0) { // Every year
+                    scoreChange += 1;
+                }
+
+                // 4. Types of Credit (10% of score)
+                const debtTypesRemaining = this.getActiveDebtTypes();
+                if (debtTypesRemaining.length < 4) { // Fewer debt types is better
+                    scoreChange += 1;
+                }
+
+                // 5. New Credit (10% of score) - Not applicable in this game
+
+                // Apply diminishing returns for very high scores
+                if (this.score >= 750) {
+                    scoreChange *= 0.5; // Harder to improve excellent credit
+                } else if (this.score >= 700) {
+                    scoreChange *= 0.7; // Somewhat harder to improve good credit
+                }
+
+                // Apply the change
+                this.score = Math.max(300, Math.min(850, Math.round(this.score + scoreChange)));
+            }
+
+            calculateUtilizationScoreChange() {
+                const currentUtilization = this.calculateCreditUtilization();
+                let scoreChange = 0;
+
+                // Credit utilization brackets with score impacts
+                if (currentUtilization === 0) {
+                    scoreChange += 3; // Best utilization
+                } else if (currentUtilization <= 10) {
+                    scoreChange += 2; // Excellent utilization
+                } else if (currentUtilization <= 30) {
+                    scoreChange += 1; // Good utilization
+                } else if (currentUtilization <= 50) {
+                    scoreChange += 0; // Fair utilization
+                } else if (currentUtilization <= 75) {
+                    scoreChange -= 1; // Poor utilization
+                } else {
+                    scoreChange -= 2; // Very poor utilization
+                }
+
+                return scoreChange;
+            }
+
+            getActiveDebtTypes() {
+                const activeDebts = [];
+                Object.keys(gameState.investments).forEach(key => {
+                    const investment = gameState.investments[key];
+                    if (investment.isDebt && investment.price > 0) {
+                        activeDebts.push(key);
+                    }
+                });
+                return activeDebts;
+            }
+
+            getCreditScoreRange() {
+                if (this.score >= 800) return { range: "Excellent", color: "#10b981", description: "You have exceptional credit!" };
+                if (this.score >= 740) return { range: "Very Good", color: "#059669", description: "You have very good credit!" };
+                if (this.score >= 670) return { range: "Good", color: "#3b82f6", description: "You have good credit!" };
+                if (this.score >= 580) return { range: "Fair", color: "#f59e0b", description: "Your credit is fair - keep improving!" };
+                return { range: "Poor", color: "#ef4444", description: "Your credit needs work - focus on debt payments!" };
+            }
+
+            // Age credit history each period
+            ageAccount() {
+                this.accountAge++;
+                
+                // Small score boost for account aging (every 6 months)
+                if (this.accountAge % 6 === 0 && this.score < 800) {
+                    this.score = Math.min(850, this.score + 1);
+                    this.scoreHistory.push(this.score);
+                }
+            }
+
+            getScoreFactors() {
+                const utilization = this.calculateCreditUtilization();
+                const activeDebts = this.getActiveDebtTypes().length;
+                
+                return {
+                    paymentHistory: `${this.consecutiveOnTimePayments} consecutive on-time payments`,
+                    creditUtilization: `${utilization.toFixed(1)}% utilization`,
+                    creditHistory: `${Math.floor(this.accountAge / 12)} years, ${this.accountAge % 12} months`,
+                    creditMix: `${activeDebts} active debt accounts`,
+                    totalPaid: `$${this.totalDebtPaidOff.toLocaleString()} total debt paid off`
+                };
+            }
+        }
+
+        // Initialize credit score system
+        let creditScoreSystem = new CreditScoreSystem();
+
+        // Game state (existing code with credit score integration)
         let gameState = {
             cash: 5000,
             period: 1,
@@ -917,7 +1113,11 @@
                 "Real estate market shows strong fundamentals.",
                 "Global markets react to positive economic data.",
                 "Debt consolidation services see increased demand.",
-                "Financial literacy programs emphasize debt management."
+                "Financial literacy programs emphasize debt management.",
+                "Good credit scores unlock better loan terms and rates.",
+                "Credit utilization below 30% is recommended by experts.",
+                "Payment history is the most important factor in credit scoring.",
+                "Paying off debt early can significantly boost your credit score."
             ]
         };
 
@@ -983,6 +1183,9 @@
             document.getElementById('portfolioValue').textContent = formatCurrency(portfolioValue);
             document.getElementById('totalWorth').textContent = formatCurrency(netWorth);
 
+            // Update credit score display
+            updateCreditScoreDisplay();
+
             // Show/hide investment options based on round
             const investmentSection = document.getElementById('investmentSection');
             if (gameState.period >= 5) {
@@ -994,8 +1197,50 @@
 
             // Update debt options
             updateDebtOptions();
-
             updatePortfolioDisplay();
+        }
+
+        function updateCreditScoreDisplay() {
+            const creditInfo = creditScoreSystem.getCreditScoreRange();
+            const creditScoreElement = document.getElementById('creditScore');
+            const creditRangeElement = document.getElementById('creditRange');
+            const creditDescElement = document.getElementById('creditDescription');
+            
+            if (creditScoreElement) {
+                creditScoreElement.textContent = creditScoreSystem.score;
+                creditScoreElement.style.color = creditInfo.color;
+            }
+            
+            if (creditRangeElement) {
+                creditRangeElement.textContent = creditInfo.range;
+                creditRangeElement.style.color = creditInfo.color;
+            }
+            
+            if (creditDescElement) {
+                creditDescElement.textContent = creditInfo.description;
+            }
+
+            // Update credit factors if element exists
+            const factorsElement = document.getElementById('creditFactors');
+            if (factorsElement) {
+                const factors = creditScoreSystem.getScoreFactors();
+                factorsElement.innerHTML = `
+                    <div><strong>Payment History:</strong> ${factors.paymentHistory}</div>
+                    <div><strong>Credit Utilization:</strong> ${factors.creditUtilization}</div>
+                    <div><strong>Credit History:</strong> ${factors.creditHistory}</div>
+                    <div><strong>Active Debts:</strong> ${factors.creditMix}</div>
+                    <div><strong>Total Paid:</strong> ${factors.totalPaid}</div>
+                `;
+            }
+        }
+
+        function showCreditScoreChange(scoreChange) {
+            if (scoreChange.scoreChange !== 0) {
+                const changeText = scoreChange.scoreChange > 0 ? 
+                    `+${scoreChange.scoreChange}` : `${scoreChange.scoreChange}`;
+                
+                alert(`Credit Score Updated!\nOld Score: ${scoreChange.oldScore}\nNew Score: ${scoreChange.newScore}\nChange: ${changeText} points`);
+            }
         }
 
         function updateDebtOptions() {
@@ -1015,9 +1260,19 @@
                 const card = document.createElement('div');
                 card.className = 'investment-card debt-card';
                 
+                let creditImpactText = '';
+                if (key === 'payday') {
+                    creditImpactText = '<div style="color: #10b981; font-weight: bold;">💡 Big credit score boost when paid off!</div>';
+                } else if (key === 'creditcard') {
+                    creditImpactText = '<div style="color: #3b82f6; font-weight: bold;">💡 Good credit score boost when paid off!</div>';
+                } else {
+                    creditImpactText = '<div style="color: #6b7280;">💡 Moderate credit score improvement</div>';
+                }
+                
                 card.innerHTML = `
                     <h4>💳 ${investment.name}</h4>
                     <p>${investment.description}</p>
+                    ${creditImpactText}
                     <div class="price-info">
                         <span class="current-price">Debt Balance: ${formatCurrency(investment.price)}</span>
                         <span class="price-change ${priceChange >= 0 ? 'price-up' : 'price-down'}">
@@ -1144,14 +1399,27 @@
             const investment = gameState.investments[investmentKey];
             
             if (investment.isDebt) {
-                // Paying off debt - reduce debt balance
+                // Paying off debt - reduce debt balance and update credit score
                 const debtPayment = Math.min(amount, investment.price);
+                const oldDebtAmount = investment.price;
                 investment.price -= debtPayment;
                 gameState.cash -= debtPayment;
                 
+                // Process credit score change
+                const scoreChange = creditScoreSystem.processDebtPayment(
+                    investmentKey, 
+                    debtPayment, 
+                    investment.price
+                );
+                
                 if (investment.price <= 0) {
                     investment.price = 0;
-                    alert(`Congratulations! You've paid off your ${investment.name}!`);
+                    alert(`Congratulations! You've paid off your ${investment.name}!\n\nCredit Score Impact:\nOld Score: ${scoreChange.oldScore}\nNew Score: ${scoreChange.newScore}\nChange: +${scoreChange.scoreChange} points!`);
+                } else {
+                    // Show credit score change for partial payments too
+                    if (scoreChange.scoreChange > 0) {
+                        showCreditScoreChange(scoreChange);
+                    }
                 }
             } else {
                 // Regular investment - buy shares
@@ -1181,6 +1449,9 @@
             gameState.cash += 2000; // Add monthly income
             updatePrices();
 
+            // Age the credit account
+            creditScoreSystem.ageAccount();
+
             // Update news
             const randomNews = gameState.newsEvents[Math.floor(Math.random() * gameState.newsEvents.length)];
             document.getElementById('newsText').textContent = `Month ${gameState.period}: ${randomNews}`;
@@ -1198,6 +1469,12 @@
             const finalWorth = gameState.cash + portfolioValue - totalDebt;
             
             document.getElementById('finalScore').textContent = formatCurrency(finalWorth);
+            document.getElementById('finalCreditScore').textContent = creditScoreSystem.score;
+            
+            const creditInfo = creditScoreSystem.getCreditScoreRange();
+            document.getElementById('finalCreditRange').textContent = creditInfo.range;
+            document.getElementById('finalCreditRange').style.color = creditInfo.color;
+            
             document.getElementById('gameOver').style.display = 'block';
             document.getElementById('investmentSection').style.display = 'none';
             document.getElementById('debtSection').style.display = 'none';
@@ -1205,6 +1482,9 @@
         }
 
         function resetGame() {
+            // Reset credit score system
+            creditScoreSystem = new CreditScoreSystem();
+            
             gameState = {
                 cash: 5000,
                 period: 1,
@@ -1277,7 +1557,11 @@
                     "Real estate market shows strong fundamentals.",
                     "Global markets react to positive economic data.",
                     "Debt consolidation services see increased demand.",
-                    "Financial literacy programs emphasize debt management."
+                    "Financial literacy programs emphasize debt management.",
+                    "Good credit scores unlock better loan terms and rates.",
+                    "Credit utilization below 30% is recommended by experts.",
+                    "Payment history is the most important factor in credit scoring.",
+                    "Paying off debt early can significantly boost your credit score."
                 ]
             };
 
@@ -1291,7 +1575,7 @@
             document.getElementById('debtSection').style.display = 'block';
             document.getElementById('nextPeriodBtn').style.display = 'inline-block';
             document.getElementById('nextPeriodBtn').textContent = '⏭️ Next Month';
-            document.getElementById('newsText').textContent = 'Welcome to the investment game! You start with $5,000. Make wise choices!';
+            document.getElementById('newsText').textContent = 'Welcome to the investment game! You start with $5,000 and a 580 credit score. Make wise choices!';
 
             updateDisplay();
         }
