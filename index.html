@@ -1343,6 +1343,14 @@
                         <span class="credit-score-factor-label">Payment History:</span>
                         <span class="credit-score-factor-value" id="paymentHistory">0 payments</span>
                     </div>
+                    <div class="credit-score-factor">
+                        <span class="credit-score-factor-label">Active Debts:</span>
+                        <span class="credit-score-factor-value" id="activeDebts">4 debts</span>
+                    </div>
+                    <div class="credit-score-factor">
+                        <span class="credit-score-factor-label">Total Debts Paid:</span>
+                        <span class="credit-score-factor-value" id="totalDebtsPaid">$0</span>
+                    </div>
                 </div>
             </div>
 
@@ -1802,9 +1810,18 @@
                 creditDescElement.textContent = creditInfo.description;
             }
 
-            // Update payment history only
+            // Update payment history
             document.getElementById('paymentHistory').textContent = 
                 `${creditScoreSystem.consecutiveOnTimePayments} consecutive payments`;
+            
+            // Update active debts count
+            const activeDebtsCount = creditScoreSystem.getActiveDebtTypes().length;
+            document.getElementById('activeDebts').textContent = 
+                `${activeDebtsCount} debt${activeDebtsCount !== 1 ? 's' : ''}`;
+            
+            // Update total debts paid
+            document.getElementById('totalDebtsPaid').textContent = 
+                formatCurrency(creditScoreSystem.totalDebtPaidOff);
         }
 
         function showCreditScoreChange(scoreChange) {
