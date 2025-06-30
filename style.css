@@ -1497,3 +1497,16 @@ p {
     transform: translateY(-1px);
     box-shadow: var(--shadow-sm);
 }
+
+.charts-section {
+    margin: 32px 0 0 0;
+    background: #f8fafc;
+    border-radius: 12px;
+    padding: 24px 18px 32px 18px;
+    box-shadow: 0 2px 12px #0001;
+}
+
+.charts-section h2 {
+    margin-bottom: 12px;
+    color: #2563eb;
+}

@@ -34,6 +34,18 @@
                     </div>
                 </div>
 
+                <!-- Charts Section (side by side) -->
+                <div class="charts-section" style="display: flex; gap: 3%; justify-content: space-between; align-items: flex-start;">
+                  <div style="flex:1; min-width:0; max-width:48%;">
+                    <h2 style="font-size:1.1em; margin-bottom:8px;">📈 Investment Performance Over Time</h2>
+                    <canvas id="investmentChart" height="80" style="width:100%;"></canvas>
+                  </div>
+                  <div style="flex:1; min-width:0; max-width:48%;">
+                    <h2 style="font-size:1.1em; margin-bottom:8px;">💳 Debt Balances Over Time</h2>
+                    <canvas id="debtChart" height="80" style="width:100%;"></canvas>
+                  </div>
+                </div>
+
                 <div class="news-section" id="newsSection">
                     <h3>📰 Market News</h3>
                     <p id="newsText">Welcome to the investment game! You start with $5,000. Make wise choices!</p>
@@ -180,7 +192,10 @@
     <div id="guidedTourOverlay" style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:rgba(0,0,0,0.5); z-index:9999;"></div>
     <div id="guidedTourTooltip" style="display:none; position:absolute; z-index:10000; background:#fff; border-radius:10px; box-shadow:0 4px 24px #0002; padding:22px 20px; max-width:340px; min-width:220px; font-size:1.05em; color:#222;"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
     <script>
+let investmentChart, debtChart;
 // Credit Score System Class
         class CreditScoreSystem {
             constructor() {
@@ -465,7 +480,12 @@
 
         // Initialize price history
         Object.keys(gameState.investments).forEach(key => {
-            gameState.priceHistory[key] = [gameState.investments[key].price];
+            if (!gameState.priceHistory[key]) {
+                gameState.priceHistory[key] = [];
+            }
+            if (gameState.priceHistory[key].length === 0) {
+                gameState.priceHistory[key].push(gameState.investments[key].price);
+            }
         });
 
         function formatCurrency(amount) {
@@ -566,6 +586,8 @@
             
             // Update restructuring options
             updateRestructuringDisplay();
+
+            renderCharts();
         }
 
         function updateCreditScoreDisplay() {
@@ -1137,7 +1159,12 @@
 
             // Reinitialize price history
             Object.keys(gameState.investments).forEach(key => {
-                gameState.priceHistory[key] = [gameState.investments[key].price];
+                if (!gameState.priceHistory[key]) {
+                    gameState.priceHistory[key] = [];
+                }
+                if (gameState.priceHistory[key].length === 0) {
+                    gameState.priceHistory[key].push(gameState.investments[key].price);
+                }
             });
 
             document.getElementById('gameOver').style.display = 'none';
@@ -1149,6 +1176,8 @@
             document.getElementById('newsText').textContent = 'Welcome to the investment game! You start with $5,000 and a 580 credit score. Make wise choices!';
 
             updateDisplay();
+
+            renderCharts();
         }
 
         // Debt Restructuring System
@@ -1391,8 +1420,17 @@
         const originalResetGame = resetGame;
         resetGame = function() {
             originalResetGame();
-            debtRestructuringSystem = new DebtRestructuringSystem(creditScoreSystem);
+            // Ensure price history is initialized after reset
+            Object.keys(gameState.investments).forEach(key => {
+                if (!gameState.priceHistory[key]) {
+                    gameState.priceHistory[key] = [];
+                }
+                if (gameState.priceHistory[key].length === 0) {
+                    gameState.priceHistory[key].push(gameState.investments[key].price);
+                }
+            });
             updateDisplay();
+            renderCharts();
         };
 
         function updateRestructuringDisplay() {
@@ -1769,6 +1807,301 @@
                 };
             }
         }, 0);
+
+        function renderCharts() {
+            // Only render if canvases exist
+            const invCanvas = document.getElementById('investmentChart');
+            const debtCanvas = document.getElementById('debtChart');
+            if (!invCanvas || !debtCanvas) return;
+
+            // Prepare labels (months)
+            let labels = Array.from({length: gameState.period}, (_, i) => `Month ${i+1}`);
+            if (labels.length === 1) labels = [labels[0], labels[0]]; // Ensure at least 2 labels
+
+            // Helper to ensure line is visible if all values are the same
+            function ensureLineVisible(data) {
+                if (data.length < 2) return [data[0], data[0]];
+                const allSame = data.every(v => v === data[0]);
+                if (allSame) {
+                    let offset = data[0] === 0 ? 0.01 : data[0] * 0.001;
+                    return [data[0], data[0] + offset];
+                }
+                return data;
+            }
+
+            // Investment performance: only non-debt investments
+            const investmentKeys = Object.keys(gameState.investments).filter(k => !gameState.investments[k].isDebt);
+            const investmentColors = {
+                stocks: {line: '#2563eb', fill: 'rgba(37,99,235,0.12)'},
+                bonds: {line: '#10b981', fill: 'rgba(16,185,129,0.12)'}
+            };
+            const investmentDatasets = investmentKeys.map(key => {
+                let data = ensureLineVisible(gameState.priceHistory[key].slice(0, gameState.period));
+                return {
+                    label: gameState.investments[key].name,
+                    data: data,
+                    borderColor: investmentColors[key]?.line || '#2563eb',
+                    backgroundColor: investmentColors[key]?.fill || 'rgba(37,99,235,0.10)',
+                    borderWidth: 2.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: investmentColors[key]?.line || '#2563eb',
+                    fill: true,
+                    tension: 0.1,
+                    order: 1
+                };
+            });
+
+            // Net worth over time (BuildYourStaxx style, not filled)
+            let netWorthData = [];
+            for (let i = 1; i <= gameState.period; i++) {
+                let cash = 5000 + 2000 * (i - 1);
+                let portfolioValue = 0;
+                let totalDebt = 0;
+                Object.keys(gameState.investments).forEach(key => {
+                    const inv = gameState.investments[key];
+                    const priceHist = gameState.priceHistory[key];
+                    if (inv.isDebt) {
+                        totalDebt += priceHist[i - 1] || 0;
+                    } else {
+                        if (gameState.portfolio[key]) {
+                            portfolioValue += (gameState.portfolio[key] || 0) * (priceHist[i - 1] || 0);
+                        }
+                    }
+                });
+                netWorthData.push(cash + portfolioValue - totalDebt);
+            }
+            netWorthData = ensureLineVisible(netWorthData);
+            investmentDatasets.push({
+                label: 'Net Worth',
+                data: netWorthData,
+                borderColor: '#f59e0b',
+                backgroundColor: 'rgba(245,158,11,0.0)',
+                borderWidth: 3,
+                pointRadius: 0,
+                pointHoverRadius: 6,
+                pointBackgroundColor: '#f59e0b',
+                fill: false,
+                tension: 0.1,
+                borderDash: [6, 4],
+                order: 0
+            });
+
+            // Debt balances: only debts
+            const debtKeys = Object.keys(gameState.investments).filter(k => gameState.investments[k].isDebt);
+            const debtColors = {
+                creditcard: {line: '#ef4444', fill: 'rgba(239,68,68,0.13)'},
+                payday: {line: '#f59e0b', fill: 'rgba(245,158,11,0.13)'},
+                autoloan: {line: '#6366f1', fill: 'rgba(99,102,241,0.13)'},
+                mortgage: {line: '#64748b', fill: 'rgba(100,116,139,0.13)'}
+            };
+            const debtDatasets = debtKeys.map(key => {
+                let data = ensureLineVisible(gameState.priceHistory[key].slice(0, gameState.period));
+                return {
+                    label: gameState.investments[key].name,
+                    data: data,
+                    borderColor: debtColors[key]?.line || '#ef4444',
+                    backgroundColor: debtColors[key]?.fill || 'rgba(239,68,68,0.10)',
+                    borderWidth: 2.5,
+                    pointRadius: 0,
+                    pointHoverRadius: 5,
+                    pointBackgroundColor: debtColors[key]?.line || '#ef4444',
+                    fill: true,
+                    tension: 0.1,
+                    order: 1
+                };
+            });
+
+            // Find min and max value for y-axis
+            function getMin(arrays) {
+                return Math.min(...[].concat(...arrays));
+            }
+            function getMax(arrays) {
+                return Math.max(...[].concat(...arrays));
+            }
+            const invMin = getMin(investmentDatasets.map(ds => ds.data));
+            const invMax = getMax(investmentDatasets.map(ds => ds.data));
+            const netWorthMax = getMax([netWorthData]);
+            const debtMin = getMin(debtDatasets.map(ds => ds.data));
+            const debtMax = getMax(debtDatasets.map(ds => ds.data));
+
+            // Destroy previous charts if they exist
+            if (investmentChart) investmentChart.destroy();
+            if (debtChart) debtChart.destroy();
+
+            // Debug logging for investment chart
+            console.log('Investment Chart Labels:', labels);
+            console.log('Investment Chart Datasets:', investmentDatasets);
+
+            // Investment Chart
+            const invCtx = invCanvas.getContext('2d');
+            investmentChart = new Chart(invCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: investmentDatasets
+                },
+                options: {
+                    responsive: true,
+                    animation: {
+                        duration: 1200,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: $${context.parsed.y.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    elements: {
+                        line: {
+                            borderJoinStyle: 'round',
+                            capBezierPoints: true
+                        },
+                        point: {
+                            radius: 0,
+                            hoverRadius: 5
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            min: Math.max(0, invMin - (invMax-invMin)*0.15 - 100),
+                            max: Math.max(invMax, netWorthMax) * 1.08 + 100,
+                            title: { display: true, text: 'Value ($)' },
+                            grid: {
+                                color: 'rgba(0,0,0,0.06)',
+                                drawBorder: true,
+                                borderColor: '#e5e7eb',
+                                borderWidth: 2
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Debug logging for debt chart
+            console.log('Debt Chart Labels:', labels);
+            console.log('Debt Chart Datasets:', debtDatasets);
+
+            // Debt Chart
+            const debtCtx = debtCanvas.getContext('2d');
+            debtChart = new Chart(debtCtx, {
+                type: 'line',
+                data: {
+                    labels: labels,
+                    datasets: debtDatasets
+                },
+                options: {
+                    responsive: true,
+                    animation: {
+                        duration: 1200,
+                        easing: 'easeOutQuart'
+                    },
+                    plugins: {
+                        legend: { position: 'top' },
+                        title: { display: false },
+                        tooltip: {
+                            enabled: true,
+                            mode: 'index',
+                            intersect: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return `${context.dataset.label}: $${context.parsed.y.toLocaleString()}`;
+                                }
+                            }
+                        }
+                    },
+                    interaction: {
+                        mode: 'nearest',
+                        axis: 'x',
+                        intersect: false
+                    },
+                    elements: {
+                        line: {
+                            borderJoinStyle: 'round',
+                            capBezierPoints: true
+                        },
+                        point: {
+                            radius: 0,
+                            hoverRadius: 5
+                        }
+                    },
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false,
+                                drawBorder: false
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            min: Math.max(0, debtMin - (debtMax-debtMin)*0.15 - 100),
+                            max: debtMax * 1.08 + 100,
+                            title: { display: true, text: 'Debt Balance ($)' },
+                            grid: {
+                                color: 'rgba(0,0,0,0.06)',
+                                drawBorder: true,
+                                borderColor: '#e5e7eb',
+                                borderWidth: 2
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // Only call renderCharts after DOM is ready and after updateDisplay
+        // Remove duplicate renderCharts calls from resetGame
+        const originalUpdateDisplay = updateDisplay;
+        updateDisplay = function() {
+            originalUpdateDisplay();
+            setTimeout(renderCharts, 0);
+        };
+
+        // On DOMContentLoaded, render initial charts after price history is set up
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', function() {
+                Object.keys(gameState.investments).forEach(key => {
+                    if (!gameState.priceHistory[key]) {
+                        gameState.priceHistory[key] = [];
+                    }
+                    if (gameState.priceHistory[key].length === 0) {
+                        gameState.priceHistory[key].push(gameState.investments[key].price);
+                    }
+                });
+                renderCharts();
+            });
+        } else {
+            Object.keys(gameState.investments).forEach(key => {
+                if (!gameState.priceHistory[key]) {
+                    gameState.priceHistory[key] = [];
+                }
+                if (gameState.priceHistory[key].length === 0) {
+                    gameState.priceHistory[key].push(gameState.investments[key].price);
+                }
+            });
+            renderCharts();
+        }
     </script>
 </body>
 </html>
