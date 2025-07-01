@@ -1930,12 +1930,16 @@ let investmentChart, debtChart;
 
             // Investment Chart
             const invCtx = invCanvas.getContext('2d');
-            // For investment chart, set max to 250 if all values are below 250, otherwise round up to nearest 50
-            let invMaxTick = Math.max(invMax, netWorthMax);
-            if (invMaxTick <= 250) {
-                invMaxTick = 250;
+            // Fix investment chart scaling - only use investment prices, not net worth
+            let invMaxTick;
+            if (invMax <= 0) {
+                invMaxTick = 150;
+            } else if (invMax <= 200) {
+                invMaxTick = 200;
+            } else if (invMax <= 400) {
+                invMaxTick = Math.ceil(invMax / 25) * 25;
             } else {
-                invMaxTick = Math.ceil(invMaxTick / 50) * 50;
+                invMaxTick = Math.ceil(invMax / 50) * 50;
             }
             investmentChart = new Chart(invCtx, {
                 type: 'line',
@@ -1995,11 +1999,11 @@ let investmentChart, debtChart;
                         },
                         y: {
                             beginAtZero: false,
-                            min: Math.max(0, invMin - (invMax-invMin)*0.25 - 200),
+                            min: Math.max(0, invMin - (invMax-invMin)*0.1),
                             max: invMaxTick,
                             suggestedMax: invMaxTick,
-                            stepSize: 50,
-                            title: { display: true, text: 'Value ($)' },
+                            stepSize: invMaxTick <= 200 ? 25 : 50,
+                            title: { display: true, text: 'Price per Share ($)' },
                             grid: {
                                 color: 'rgba(0,0,0,0.06)',
                                 drawBorder: true,
@@ -2082,10 +2086,10 @@ let investmentChart, debtChart;
                         },
                         y: {
                             beginAtZero: false,
-                            min: Math.max(0, debtMin - (debtMax-debtMin)*0.25 - 200),
+                            min: Math.max(0, debtMin - (debtMax-debtMin)*0.1),
                             max: debtMaxTick,
                             suggestedMax: debtMaxTick,
-                            stepSize: 10000,
+                            stepSize: debtMaxTick <= 30000 ? 5000 : 10000,
                             title: { display: true, text: 'Debt Balance ($)' },
                             grid: {
                                 color: 'rgba(0,0,0,0.06)',
