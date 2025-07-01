@@ -1998,8 +1998,8 @@ let investmentChart, debtChart;
                             }
                         },
                         y: {
-                            beginAtZero: false,
-                            min: Math.max(0, invMin - (invMax-invMin)*0.1),
+                            beginAtZero: true,
+                            min: 0,
                             max: invMaxTick,
                             suggestedMax: invMaxTick,
                             stepSize: invMaxTick <= 200 ? 25 : 50,
@@ -2085,8 +2085,8 @@ let investmentChart, debtChart;
                             }
                         },
                         y: {
-                            beginAtZero: false,
-                            min: Math.max(0, debtMin - (debtMax-debtMin)*0.1),
+                            beginAtZero: true,
+                            min: 0,
                             max: debtMaxTick,
                             suggestedMax: debtMaxTick,
                             stepSize: debtMaxTick <= 30000 ? 5000 : 10000,
